@@ -16,8 +16,8 @@ CORS(app)   # allow the HTML file to call this API from any origin
 def get_connection():
     return pyodbc.connect(
         "Driver={SQL Server};"
-        "Server=DESKTOP-K0M3A0H;"   # ← change to your server name
-        "Database=honda_dms;"
+        "Server=Enter your desktop server name;" 
+        "Database=Enter your database name;"
         "Trusted_Connection=yes;"
     )
 
