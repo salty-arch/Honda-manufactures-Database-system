@@ -17,10 +17,10 @@ Look at the Server name field.
 
 Examples:
 
-DESKTOP-ABC123
-DESKTOP-ABC123\SQLEXPRESS
-localhost
-(localdb)\MSSQLLocalDB
+DESKTOP-ABC123,
+DESKTOP-ABC123\SQLEXPRESS,
+localhost,
+(localdb)\MSSQLLocalDB,
 
 That exact text is your server name.
 If we talk about SQL Management server 2022, the server name is 'DESKTOP-ABC123'. 
