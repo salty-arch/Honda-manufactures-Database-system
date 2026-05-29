@@ -25,4 +25,5 @@ localhost,
 That exact text is your server name.
 If we talk about SQL Management server 2022, the server name is 'DESKTOP-ABC123'. 
 Add this in the server name
-and in the parameter below server name in api.py, add the name for the database which for this instance is 'honda_dms'
+and in the parameter below server name in api.py, add the name of the database which for this instance is 'honda_dms'
+You can change the database name in the setup.sql to your liking when youll copy paste that file as a new query in the sql managemenet server.
