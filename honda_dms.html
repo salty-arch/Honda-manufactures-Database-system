@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honda DMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0b; --surface:#111113; --card:#18181c; --border:#242428; --border2:#2e2e34;
+  --red:#e8002d; --red-dim:#7a0016; --red-glow:rgba(232,0,45,.15);
+  --text:#f0f0f2; --muted:#a0a0a8; --sub:#7a7a82;
+  --mono:'DM Mono',monospace; --sans:'DM Sans',sans-serif; --display:'Bebas Neue',sans-serif;
+  --radius:6px; --sidebar-collapsed:56px; --sidebar-expanded:220px; --tr:.18s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;display:flex}
+
+/* SIDEBAR — collapsible: 56px default, 220px on hover */
+.sidebar{width:var(--sidebar-collapsed);min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;overflow:hidden;white-space:nowrap;transition:width .22s cubic-bezier(.4,0,.2,1)}
+.sidebar:hover{width:var(--sidebar-expanded);overflow-y:auto}
+/* logo — collapsed: centered "H"; expanded: full brand */
+.sidebar-logo-short{display:flex;align-items:center;justify-content:center;padding:14px 0;border-bottom:1px solid var(--border);font-family:var(--display);font-size:26px;color:var(--red)}
+.sidebar:hover .sidebar-logo-short{display:none}
+.sidebar-logo{display:none;padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-direction:column}
+.sidebar:hover .sidebar-logo{display:flex}
+.sidebar-logo .brand{font-family:var(--display);font-size:28px;letter-spacing:.04em;color:var(--red);line-height:1}
+.sidebar-logo .sub{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+/* section headers — hidden when collapsed */
+.nav-section{padding:10px 12px 4px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--sub);font-weight:500;opacity:0;transition:opacity .12s}
+.sidebar:hover .nav-section{opacity:1}
+/* nav items — icon always visible, label hidden when collapsed */
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 20px;color:var(--muted);cursor:pointer;transition:all var(--tr);border-left:2px solid transparent;font-size:12.5px;user-select:none;overflow:hidden}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--text);background:rgba(232,0,45,.08);border-left-color:var(--red)}
+.nav-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.nav-label{opacity:0;transition:opacity .12s .04s}
+.sidebar:hover .nav-label{opacity:1}
+/* footer — connection status */
+.sidebar-footer{margin-top:auto;padding:12px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--sub);opacity:0;transition:opacity .12s}
+.sidebar:hover .sidebar-footer{opacity:1}
+#conn-status{display:inline-block;width:7px;height:7px;border-radius:50%;background:#555;margin-right:5px;vertical-align:middle}
+#conn-status.ok{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.6)}
+#conn-status.err{background:var(--red)}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-collapsed);flex:1;display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:1}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.page-title{font-family:var(--display);font-size:22px;letter-spacing:.06em;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted)}
+.content{padding:32px;flex:1}
+
+/* PAGES */
+.page{display:none}
+.page.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* DASHBOARD */
+.dash-hero{
+  background:rgba(18,18,20,.72);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:40px 44px;margin-bottom:24px;
+  position:relative;overflow:hidden;
+  backdrop-filter:blur(20px);
+  box-shadow:0 0 0 1px rgba(232,0,45,.08) inset, 0 8px 32px rgba(0,0,0,.4);
+}
+.dash-hero::before{content:'HONDA';font-family:var(--display);font-size:160px;color:rgba(255,255,255,.03);position:absolute;right:-10px;top:-20px;pointer-events:none;line-height:1}
+.dash-hero::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--red),transparent);
+  opacity:.5;
+}
+.dash-hero h1{font-family:var(--display);font-size:48px;letter-spacing:.06em;color:var(--text);line-height:1.1;margin-bottom:8px}
+.dash-hero h1 span{color:var(--red);text-shadow:0 0 30px rgba(232,0,45,.4)}
+.dash-hero p{color:var(--muted);font-size:14px;max-width:500px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+.kpi{
+  background:rgba(18,18,20,.72);
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:var(--radius);padding:20px 22px;
+  transition:all var(--tr);
+  backdrop-filter:blur(10px);
+}
+.kpi:hover{border-color:rgba(232,0,45,.25);box-shadow:0 0 20px rgba(232,0,45,.08)}
+.kpi-label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.kpi-value{font-family:var(--display);font-size:36px;letter-spacing:.04em;line-height:1;color:var(--text)}
+.kpi-value.red{color:var(--red)}
+.kpi-sub{font-size:11px;color:var(--sub);margin-top:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.section-head h2{font-family:var(--display);font-size:20px;letter-spacing:.06em;color:var(--text)}
+.section-head .line{flex:1;height:1px;background:var(--border)}
+
+/* PANEL */
+.panel{
+  background:rgba(18,18,20,.75);
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:8px;overflow:hidden;margin-bottom:24px;
+  backdrop-filter:blur(12px);
+  box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.panel-header{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.018)}
+.panel-header h3{font-size:13px;font-weight:500;color:var(--text)}
+.panel-body{padding:22px}
+
+/* SUB TABS */
+.sub-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:24px}
+.sub-tab{padding:10px 22px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--tr);user-select:none;white-space:nowrap}
+.sub-tab:hover{color:var(--text)}
+.sub-tab.active{color:var(--text);border-bottom-color:var(--red)}
+.sub-panel{display:none}
+.sub-panel.active{display:block}
+
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 20px;margin-bottom:20px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+label{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+input[type="text"],input[type="number"],input[type="date"],select,textarea{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 12px;width:100%;transition:border-color var(--tr),box-shadow var(--tr);outline:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--red-glow)}
+input::placeholder{color:var(--sub)}
+select option{background:var(--card)}
+.form-hint{font-size:11px;color:var(--sub);margin-top:-8px;margin-bottom:6px}
+.btn-row{display:flex;justify-content:flex-end;gap:10px;margin-top:4px}
+/* ── BEAM CANVAS ── */
+#beam-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:1;filter:blur(18px)}
+
+/* ── METAL BUTTON (primary) ── */
+button,.btn{font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;border:none;outline:none;user-select:none;transition:all .25s cubic-bezier(.1,.4,.2,1)}
+
+.btn-primary{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  padding:9px 20px;border-radius:var(--radius);
+  background:linear-gradient(to bottom,#ff1a42,#a5001f);
+  color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 2px 0 0 rgba(255,100,100,.18) inset,0 3px 8px rgba(232,0,45,.35),0 1px 2px rgba(0,0,0,.4);
+  text-shadow:0 -1px 0 rgba(80,0,15,.8);
+  transform:translateY(0) scale(1);
+}
+.btn-primary::before{
+  content:'';position:absolute;inset:0;border-radius:var(--radius);
+  background:linear-gradient(to bottom,rgba(255,255,255,.18) 0%,transparent 55%);
+  pointer-events:none;
+}
+.btn-primary:hover{background:linear-gradient(to bottom,#ff2e54,#c0002a);box-shadow:0 0 0 1px rgba(255,255,255,.15) inset,0 2px 0 0 rgba(255,120,120,.2) inset,0 4px 14px rgba(232,0,45,.45),0 1px 3px rgba(0,0,0,.5);filter:brightness(1.08)}
+.btn-primary:active{transform:translateY(2px) scale(.98);box-shadow:0 1px 2px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.08) inset}
+
+/* ── SECONDARY BUTTON ── */
+.btn-secondary{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  padding:9px 20px;border-radius:var(--radius);
+  background:linear-gradient(to bottom,#2a2a2e,#1a1a1d);
+  color:var(--muted);
+  box-shadow:0 0 0 1px rgba(255,255,255,.07) inset,0 1px 0 rgba(255,255,255,.05) inset,0 2px 4px rgba(0,0,0,.4),0 0 0 1px rgba(0,0,0,.5);
+  transform:translateY(0);
+}
+.btn-secondary:hover{color:var(--text);background:linear-gradient(to bottom,#333338,#222226);box-shadow:0 0 0 1px rgba(255,255,255,.1) inset,0 1px 0 rgba(255,255,255,.07) inset,0 3px 6px rgba(0,0,0,.5)}
+.btn-secondary:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(0,0,0,.3)}
+
+/* ── GHOST BUTTON (load/run) — NEON style ── */
+.btn-ghost{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 18px;border-radius:9999px;
+  background:rgba(59,130,246,.05);
+  color:#93c5fd;
+  border:1px solid rgba(59,130,246,.2);
+  font-weight:500;
+  transform:translateY(0);
+  transition:all .2s ease;
+  overflow:visible;
+}
+.btn-ghost::before{
+  /* top neon line — appears on hover */
+  content:'';
+  position:absolute;
+  top:0; left:12.5%; right:12.5%;
+  height:1px;
+  background:linear-gradient(90deg,transparent,#3b82f6,transparent);
+  opacity:0;
+  transition:opacity .5s ease;
+  border-radius:9999px;
+}
+.btn-ghost::after{
+  /* bottom neon glow line */
+  content:'';
+  position:absolute;
+  bottom:-1px; left:12.5%; right:12.5%;
+  height:1px;
+  background:linear-gradient(90deg,transparent,#3b82f6,transparent);
+  opacity:.3;
+  transition:opacity .5s ease;
+  border-radius:9999px;
+}
+.btn-ghost:hover{
+  background:rgba(59,130,246,.0);
+  border-color:rgba(59,130,246,.35);
+  color:#bfdbfe;
+  box-shadow:0 0 12px rgba(59,130,246,.15);
+}
+.btn-ghost:hover::before{ opacity:1; }
+.btn-ghost:hover::after { opacity:.3; }
+.btn-ghost:active{transform:translateY(1px)}
+.load-row{display:flex;gap:10px;align-items:flex-end;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.load-row .form-group{flex:0 0 200px}
+
+/* QUERY BAR */
+.query-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.query-bar .form-group{flex:1;min-width:200px}
+.query-bar .param-group{flex:0 0 200px}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
+thead th{padding:11px 14px;text-align:left;font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background var(--tr)}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
+td.mono{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.table-footer{padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--sub);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.015)}
+
+
+/* EXPORT CSV BUTTON */
+.btn-csv{padding:3px 10px;font-size:10px;border-radius:9999px;background:rgba(34,197,94,.1);color:#4ade80;border:1px solid rgba(34,197,94,.2);cursor:pointer;transition:all .2s;font-family:var(--sans);font-weight:500}
+.btn-csv:hover{background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.35)}
+
+/* GLOBAL SEARCH */
+#global-search{width:260px;padding:6px 14px;border-radius:9999px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-size:12px;outline:none;transition:border-color var(--tr),box-shadow var(--tr);font-family:var(--sans)}
+#global-search:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--red-glow)}
+#global-search::placeholder{color:var(--sub)}
+#global-search-results{display:none;position:absolute;top:100%;right:0;width:560px;max-height:520px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:8px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#global-search-results table{font-size:12px}
+#global-search-results tbody tr{cursor:pointer}
+#global-search-results tbody tr:hover{background:rgba(232,0,45,.08)}
+
+/* SEARCH DETAIL CARD */
+.search-detail{font-size:12px}
+.search-detail-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.search-detail-back{cursor:pointer;color:var(--muted);font-size:11px;transition:color var(--tr);display:flex;align-items:center;gap:4px}
+.search-detail-back:hover{color:var(--text)}
+.search-detail-title{font-family:var(--display);font-size:16px;letter-spacing:.04em;color:var(--red)}
+.search-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;padding:4px 14px 12px}
+.search-detail-row{display:flex;justify-content:space-between;padding:5px 10px;border-radius:4px;background:rgba(255,255,255,.018)}
+.search-detail-label{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+.search-detail-value{color:var(--text);font-size:12px;font-weight:500;text-align:right}
+.search-detail-value.mono{font-family:var(--mono);font-size:11px}
+.search-detail-view{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:9999px;font-size:10px;font-weight:600;cursor:pointer;background:rgba(232,0,45,.1);color:var(--red);border:1px solid rgba(232,0,45,.2);transition:all var(--tr);text-decoration:none}
+.search-detail-view:hover{background:rgba(232,0,45,.2);border-color:rgba(232,0,45,.35)}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:500;letter-spacing:.04em}
+.badge-green{background:rgba(34,197,94,.15);color:#4ade80}
+.badge-amber{background:rgba(251,191,36,.15);color:#fbbf24}
+.badge-red{background:rgba(232,0,45,.15);color:#f87171}
+.badge-blue{background:rgba(96,165,250,.15);color:#60a5fa}
+.badge-gray{background:rgba(120,120,130,.15);color:#9ca3af}
+
+/* ANALYTICS CARDS */
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:28px}
+.analytics-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;cursor:pointer;transition:all var(--tr);display:flex;flex-direction:column;gap:6px}
+.analytics-card:hover{border-color:var(--red-dim);background:rgba(232,0,45,.04);transform:translateY(-1px)}
+.analytics-card.selected{border-color:var(--red);background:rgba(232,0,45,.07)}
+.q-num{font-family:var(--mono);font-size:10px;color:var(--red);letter-spacing:.12em;text-transform:uppercase}
+.q-title{font-size:13px;font-weight:500;color:var(--text);line-height:1.4}
+.q-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.q-tag{font-size:10px;color:var(--sub);border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+
+/* DB FEATURES PAGE */
+.dbf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:16px;margin-bottom:8px}
+.dbf-desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:var(--radius);border-left:2px solid var(--red)}
+.dbf-tag{font-family:var(--mono);font-size:10px;color:var(--red);background:rgba(232,0,45,.1);border:1px solid rgba(232,0,45,.2);padding:2px 8px;border-radius:4px;white-space:nowrap}
+.dbf-badge{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:.06em}
+.dbf-badge.sp{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.25)}
+.dbf-badge.trg{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.25)}
+.dbf-badge.vw{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.25)}
+.dbf-badge.idx{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.25)}
+.dbf-result{margin-top:12px}
+.dbf-success{padding:10px 14px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:var(--radius);color:#4ade80;font-size:13px}
+.dbf-error{padding:10px 14px;background:rgba(232,0,45,.1);border:1px solid rgba(232,0,45,.25);border-radius:var(--radius);color:#f87171;font-size:13px}
+.dbf-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:60px 20px;color:var(--sub)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+
+/* TOAST */
+#toast{position:fixed;bottom:28px;right:28px;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px;z-index:9999;transform:translateY(20px);opacity:0;transition:all .25s cubic-bezier(.4,0,.2,1);pointer-events:none;min-width:240px}
+#toast.show{transform:none;opacity:1}
+#toast.success .toast-dot{background:#22c55e}
+#toast.error .toast-dot{background:var(--red)}
+.toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--sub)}
+</style>
+</head>
+<body>
+<canvas id="beam-canvas"></canvas>
+<nav class="sidebar">
+  <div class="sidebar-logo-short">H</div>
+  <div class="sidebar-logo">
+    <div class="brand">HONDA</div>
+    <div class="sub">Dealership Management</div>
+  </div>
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span><span class="nav-label">Dashboard</span></div>
+  <div class="nav-section">Management</div>
+  <div class="nav-item" onclick="showPage('plants',this)"><span class="nav-icon">⬡</span><span class="nav-label">Plants</span></div>
+  <div class="nav-item" onclick="showPage('models',this)"><span class="nav-icon">◻</span><span class="nav-label">Vehicle Models</span></div>
+  <div class="nav-item" onclick="showPage('production',this)"><span class="nav-icon">◈</span><span class="nav-label">Production</span></div>
+  <div class="nav-item" onclick="showPage('dealerships',this)"><span class="nav-icon">⬟</span><span class="nav-label">Dealerships</span></div>
+  <div class="nav-item" onclick="showPage('inventory',this)"><span class="nav-icon">▣</span><span class="nav-label">Inventory</span></div>
+  <div class="nav-section">Sales</div>
+  <div class="nav-item" onclick="showPage('customers',this)"><span class="nav-icon">○</span><span class="nav-label">Customers</span></div>
+  <div class="nav-item" onclick="showPage('contracts',this)"><span class="nav-icon">▤</span><span class="nav-label">Contracts</span></div>
+  <div class="nav-item" onclick="showPage('financing',this)"><span class="nav-icon">◇</span><span class="nav-label">Financing</span></div>
+  <div class="nav-section">Operations</div>
+  <div class="nav-item" onclick="showPage('parts',this)"><span class="nav-icon">⬡</span><span class="nav-label">Parts Orders</span></div>
+  <div class="nav-item" onclick="showPage('service',this)"><span class="nav-icon">◈</span><span class="nav-label">Service</span></div>
+  <div class="nav-section">Intelligence</div>
+  <div class="nav-item" onclick="showPage('analytics',this)"><span class="nav-icon">◈</span><span class="nav-label">Analytics</span></div>
+  <div class="nav-item" onclick="showPage('dbfeatures',this)"><span class="nav-icon">⬡</span><span class="nav-label">DB Features</span></div>
+  <div class="sidebar-footer">
+    <span id="conn-status"></span><span id="conn-label">Checking…</span><br>
+    honda_dms · SQL Server
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar" style="position:relative">
+    <span class="page-title" id="topbar-title">DASHBOARD</span>
+    <div class="topbar-right">
+      <div style="position:relative">
+        <input type="text" id="global-search" placeholder="Search VIN, customer, contract�">
+        <div id="global-search-results"></div>
+      </div>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="dash-hero">
+        <h1>Dealership<br><span>Management</span></h1>
+        <p>Unified platform for inventory, sales, financing, parts, and service analytics across the Honda dealer network.</p>
+      </div>
+
+      <!-- LIVE KPI GRID -->
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Total Revenue</div>
+          <div class="kpi-value red" id="kpi-revenue">—</div>
+          <div class="kpi-sub" id="kpi-revenue-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Available Vehicles</div>
+          <div class="kpi-value" id="kpi-available">—</div>
+          <div class="kpi-sub" id="kpi-available-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Total Contracts</div>
+          <div class="kpi-value" id="kpi-contracts">—</div>
+          <div class="kpi-sub" id="kpi-contracts-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Pending Contracts</div>
+          <div class="kpi-value red" id="kpi-pending">—</div>
+          <div class="kpi-sub" id="kpi-pending-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Total Customers</div>
+          <div class="kpi-value" id="kpi-customers">—</div>
+          <div class="kpi-sub" id="kpi-customers-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Parts Orders</div>
+          <div class="kpi-value" id="kpi-parts">—</div>
+          <div class="kpi-sub" id="kpi-parts-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Service Appointments</div>
+          <div class="kpi-value" id="kpi-service">—</div>
+          <div class="kpi-sub" id="kpi-service-sub">Loading…</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Vehicles Sold</div>
+          <div class="kpi-value red" id="kpi-sold">—</div>
+          <div class="kpi-sub" id="kpi-sold-sub">Loading…</div>
+        </div>
+      </div>
+
+      <!-- MOST RECENT SALE -->
+      <div class="section-head">
+        <h2>MOST RECENT SALE</h2><div class="line"></div>
+        <button class="btn-ghost" onclick="loadDashboard()" style="padding:5px 14px;font-size:12px">↻ Refresh</button>
+      </div>
+      <div class="panel" style="margin-bottom:24px">
+        <div class="panel-body" id="dash-recent-sale">
+          <div class="empty-state"><div class="empty-icon">◈</div><p>Loading…</p></div>
+        </div>
+      </div>
+
+      <!-- TOP DEALERSHIP + LOW STOCK side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="panel">
+          <div class="panel-header"><h3>Top Dealership by Revenue</h3></div>
+          <div class="panel-body" id="dash-top-dealer">
+            <div class="empty-state"><div class="empty-icon">🏢</div><p>Loading…</p></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3>Pending Parts Orders</h3></div>
+          <div class="panel-body" id="dash-pending-parts">
+            <div class="empty-state"><div class="empty-icon">🔧</div><p>Loading…</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY BREAKDOWN -->
+      <div class="section-head"><h2>INVENTORY BREAKDOWN</h2><div class="line"></div></div>
+      <div class="panel">
+        <div class="panel-body" id="dash-inventory-breakdown">
+          <div class="empty-state"><div class="empty-icon">📦</div><p>Loading…</p></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PLANTS -->
+    <div id="page-plants" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'pl-add')">Add Plant</div>
+        <div class="sub-tab" onclick="showSub(this,'pl-mod')">Modify Plant</div>
+        <div class="sub-tab" onclick="showSub(this,'pl-qry')">Queries</div>
+      </div>
+      <div id="pl-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Register New Plant</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Plant Name</label><input id="p_name" type="text" placeholder="Honda Atlas Sheikhupura"></div>
+            <div class="form-group"><label>Country</label><input id="p_country" type="text" placeholder="Pakistan"></div>
+            <div class="form-group"><label>City</label><input id="p_city" type="text" placeholder="Sheikhupura"></div>
+            <div class="form-group"><label>Annual Capacity</label><input id="p_cap" type="number" placeholder="50000"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['p_name','p_country','p_city','p_cap'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO Plants (plant_name,country,city,annual_capacity) VALUES (?,?,?,?)',['p_name','p_country','p_city','p_cap'],'Plant added')">Save Plant</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="pl-mod" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Modify Plant</h3></div><div class="panel-body">
+          <div class="load-row">
+            <div class="form-group"><label>Plant ID</label><input id="pm_id" type="number" placeholder="1"></div>
+            <button class="btn-ghost" onclick="loadRecord('SELECT * FROM Plants WHERE plant_id=?','pm_id',['pm_name','pm_country','pm_city','pm_cap'])">Load ↗</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Plant Name</label><input id="pm_name" type="text"></div>
+            <div class="form-group"><label>Country</label><input id="pm_country" type="text"></div>
+            <div class="form-group"><label>City</label><input id="pm_city" type="text"></div>
+            <div class="form-group"><label>Annual Capacity</label><input id="pm_cap" type="number"></div>
+          </div>
+          <div class="btn-row"><button class="btn-primary" onclick="dbWrite('UPDATE Plants SET plant_name=?,country=?,city=?,annual_capacity=? WHERE plant_id=?',['pm_name','pm_country','pm_city','pm_cap','pm_id'],'Plant updated')">Save Changes</button></div>
+        </div></div>
+      </div>
+      <div id="pl-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Plants</h3></div><div class="panel-body">
+          <div id="qp-plants"></div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- VEHICLE MODELS -->
+    <div id="page-models" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'vm-add')">Add Model</div>
+        <div class="sub-tab" onclick="showSub(this,'vm-mod')">Modify Model</div>
+        <div class="sub-tab" onclick="showSub(this,'vm-qry')">Queries</div>
+      </div>
+      <div id="vm-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Add Vehicle Model</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Model Name</label><input id="vm_name" type="text" placeholder="Honda City"></div>
+            <div class="form-group"><label>Category</label><select id="vm_cat"><option>Sedan</option><option>SUV</option><option>Hatchback</option><option>Crossover</option></select></div>
+            <div class="form-group"><label>Engine CC (0 = Electric)</label><input id="vm_cc" type="number" placeholder="1497"></div>
+            <div class="form-group"><label>Fuel Type</label><select id="vm_fuel"><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></div>
+            <div class="form-group"><label>Transmission</label><select id="vm_trans"><option>Automatic</option><option>Manual</option><option>CVT</option></select></div>
+            <div class="form-group"><label>Base Price (PKR)</label><input id="vm_price" type="number" placeholder="3500000"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['vm_name','vm_cc','vm_price'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO VehicleModels (model_name,category,engine_cc,fuel_type,transmission,base_price) VALUES (?,?,?,?,?,?)',['vm_name','vm_cat','vm_cc','vm_fuel','vm_trans','vm_price'],'Model added')">Save Model</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="vm-mod" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Modify Model</h3></div><div class="panel-body">
+          <div class="load-row">
+            <div class="form-group"><label>Model ID</label><input id="vmm_id" type="number" placeholder="8"></div>
+            <button class="btn-ghost" onclick="loadRecord('SELECT * FROM VehicleModels WHERE model_id=?','vmm_id',['vmm_name','vmm_cat','vmm_cc','vmm_fuel','vmm_trans','vmm_price'])">Load ↗</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Model Name</label><input id="vmm_name" type="text"></div>
+            <div class="form-group"><label>Category</label><input id="vmm_cat" type="text"></div>
+            <div class="form-group"><label>Engine CC</label><input id="vmm_cc" type="number"></div>
+            <div class="form-group"><label>Fuel Type</label><input id="vmm_fuel" type="text"></div>
+            <div class="form-group"><label>Transmission</label><input id="vmm_trans" type="text"></div>
+            <div class="form-group"><label>Base Price</label><input id="vmm_price" type="number"></div>
+          </div>
+          <div class="btn-row"><button class="btn-primary" onclick="dbWrite('UPDATE VehicleModels SET model_name=?,category=?,engine_cc=?,fuel_type=?,transmission=?,base_price=? WHERE model_id=?',['vmm_name','vmm_cat','vmm_cc','vmm_fuel','vmm_trans','vmm_price','vmm_id'],'Model updated')">Save Changes</button></div>
+        </div></div>
+      </div>
+      <div id="vm-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Models</h3></div><div class="panel-body"><div id="qp-models"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTION -->
+    <div id="page-production" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'pb-add')">Record Batch</div>
+        <div class="sub-tab" onclick="showSub(this,'pb-qry')">Queries</div>
+      </div>
+      <div id="pb-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Record Production Batch</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Plant ID</label><input id="pb_plant" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Model ID</label><input id="pb_model" type="number" placeholder="8"></div>
+            <div class="form-group"><label>Batch Date</label><input id="pb_date" type="date"></div>
+            <div class="form-group"><label>Units Produced</label><input id="pb_units" type="number" placeholder="500"></div>
+            <div class="form-group"><label>Dispatch Date</label><input id="pb_dispatch" type="date"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['pb_plant','pb_model','pb_date','pb_units','pb_dispatch'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO ProductionBatches (plant_id,model_id,batch_date,units_produced,dispatch_date) VALUES (?,?,?,?,?)',['pb_plant','pb_model','pb_date','pb_units','pb_dispatch'],'Batch recorded')">Save Batch</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="pb-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Batches</h3></div><div class="panel-body"><div id="qp-production"></div></div></div>
+      </div>
+    </div>
+
+    <!-- DEALERSHIPS -->
+    <div id="page-dealerships" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'dl-add')">Add Dealership</div>
+        <div class="sub-tab" onclick="showSub(this,'dl-mod')">Modify</div>
+        <div class="sub-tab" onclick="showSub(this,'dl-qry')">Queries</div>
+      </div>
+      <div id="dl-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Register Dealership</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Name</label><input id="dl_name" type="text" placeholder="Honda Lahore Central"></div>
+            <div class="form-group"><label>City</label><input id="dl_city" type="text" placeholder="Lahore"></div>
+            <div class="form-group"><label>Region</label><select id="dl_region"><option>Punjab</option><option>Sindh</option><option>Capital</option><option>KPK</option><option>Balochistan</option></select></div>
+            <div class="form-group"><label>Contact Phone</label><input id="dl_phone" type="text" placeholder="042-35761234"></div>
+            <div class="form-group"><label>Manager Name</label><input id="dl_mgr" type="text" placeholder="Asad Mehmood"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['dl_name','dl_city','dl_phone','dl_mgr'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO Dealerships (dealership_name,city,region,contact_phone,manager_name) VALUES (?,?,?,?,?)',['dl_name','dl_city','dl_region','dl_phone','dl_mgr'],'Dealership added')">Save</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="dl-mod" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Modify Dealership</h3></div><div class="panel-body">
+          <div class="load-row">
+            <div class="form-group"><label>Dealership ID</label><input id="dlm_id" type="number" placeholder="1"></div>
+            <button class="btn-ghost" onclick="loadRecord('SELECT * FROM Dealerships WHERE dealership_id=?','dlm_id',['dlm_name','dlm_city','dlm_region','dlm_phone','dlm_mgr'])">Load ↗</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Name</label><input id="dlm_name" type="text"></div>
+            <div class="form-group"><label>City</label><input id="dlm_city" type="text"></div>
+            <div class="form-group"><label>Region</label><input id="dlm_region" type="text"></div>
+            <div class="form-group"><label>Phone</label><input id="dlm_phone" type="text"></div>
+            <div class="form-group"><label>Manager</label><input id="dlm_mgr" type="text"></div>
+          </div>
+          <div class="btn-row"><button class="btn-primary" onclick="dbWrite('UPDATE Dealerships SET dealership_name=?,city=?,region=?,contact_phone=?,manager_name=? WHERE dealership_id=?',['dlm_name','dlm_city','dlm_region','dlm_phone','dlm_mgr','dlm_id'],'Dealership updated')">Save Changes</button></div>
+        </div></div>
+      </div>
+      <div id="dl-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Dealerships</h3></div><div class="panel-body"><div id="qp-dealerships"></div></div></div>
+      </div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="page-inventory" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'iv-add')">Add Vehicle</div>
+        <div class="sub-tab" onclick="showSub(this,'iv-upd')">Update Status</div>
+        <div class="sub-tab" onclick="showSub(this,'iv-qry')">Queries</div>
+      </div>
+      <div id="iv-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Add Vehicle to Inventory</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>VIN (17 chars)</label><input id="iv_vin" type="text" maxlength="17" placeholder="JHMFC1F30MX000008"></div>
+            <div class="form-group"><label>Dealership ID</label><input id="iv_did" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Model ID</label><input id="iv_mid" type="number" placeholder="8"></div>
+            <div class="form-group"><label>Color</label><input id="iv_color" type="text" placeholder="Pearl White"></div>
+            <div class="form-group"><label>Year</label><input id="iv_year" type="number" placeholder="2024"></div>
+            <div class="form-group"><label>Status</label><select id="iv_status"><option>Available</option><option>Reserved</option><option>In Transit</option></select></div>
+            <div class="form-group"><label>Arrival Date</label><input id="iv_date" type="date"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['iv_vin','iv_did','iv_mid','iv_color','iv_year','iv_date'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO Inventory (vin,dealership_id,model_id,color,year,status,arrival_date) VALUES (?,?,?,?,?,?,?)',['iv_vin','iv_did','iv_mid','iv_color','iv_year','iv_status','iv_date'],'Vehicle added')">Save Vehicle</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="iv-upd" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Update Vehicle Status</h3></div><div class="panel-body">
+          <div class="form-grid" style="max-width:500px">
+            <div class="form-group"><label>VIN</label><input id="ivu_vin" type="text" placeholder="JHMFC1F30MX000001"></div>
+            <div class="form-group"><label>New Status</label><select id="ivu_status"><option>Available</option><option>Reserved</option><option>Sold</option><option>In Transit</option></select></div>
+          </div>
+          <div class="btn-row" style="justify-content:flex-start;margin-top:8px">
+            <button class="btn-primary" onclick="dbWrite('UPDATE Inventory SET status=? WHERE vin=?',['ivu_status','ivu_vin'],'Status updated')">Update Status</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="iv-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Inventory</h3></div><div class="panel-body"><div id="qp-inventory"></div></div></div>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div id="page-customers" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'cu-add')">Add Customer</div>
+        <div class="sub-tab" onclick="showSub(this,'cu-mod')">Modify</div>
+        <div class="sub-tab" onclick="showSub(this,'cu-qry')">Queries</div>
+      </div>
+      <div id="cu-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>New Customer</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Full Name</label><input id="cu_name" type="text" placeholder="Ali Hassan"></div>
+            <div class="form-group"><label>Phone</label><input id="cu_phone" type="text" placeholder="0300-1234567"></div>
+            <div class="form-group"><label>Email</label><input id="cu_email" type="text" placeholder="ali@email.com"></div>
+            <div class="form-group"><label>CNIC</label><input id="cu_cnic" type="text" placeholder="35202-1234567-1"></div>
+            <div class="form-group" style="grid-column:span 2"><label>Address</label><input id="cu_addr" type="text" placeholder="House 12, DHA Lahore"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['cu_name','cu_phone','cu_email','cu_cnic','cu_addr'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO Customers (full_name,phone,email,address,cnic) VALUES (?,?,?,?,?)',['cu_name','cu_phone','cu_email','cu_addr','cu_cnic'],'Customer added')">Save Customer</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="cu-mod" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Modify Customer</h3></div><div class="panel-body">
+          <div class="load-row">
+            <div class="form-group"><label>Customer ID</label><input id="cum_id" type="number" placeholder="1"></div>
+            <button class="btn-ghost" onclick="loadRecord('SELECT * FROM Customers WHERE customer_id=?','cum_id',['cum_name','cum_phone','cum_email','cum_addr','cum_cnic'])">Load ↗</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Full Name</label><input id="cum_name" type="text"></div>
+            <div class="form-group"><label>Phone</label><input id="cum_phone" type="text"></div>
+            <div class="form-group"><label>Email</label><input id="cum_email" type="text"></div>
+            <div class="form-group"><label>CNIC</label><input id="cum_cnic" type="text"></div>
+            <div class="form-group" style="grid-column:span 2"><label>Address</label><input id="cum_addr" type="text"></div>
+          </div>
+          <div class="btn-row"><button class="btn-primary" onclick="dbWrite('UPDATE Customers SET full_name=?,phone=?,email=?,address=?,cnic=? WHERE customer_id=?',['cum_name','cum_phone','cum_email','cum_addr','cum_cnic','cum_id'],'Customer updated')">Save Changes</button></div>
+        </div></div>
+      </div>
+      <div id="cu-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Customers</h3></div><div class="panel-body"><div id="qp-customers"></div></div></div>
+      </div>
+    </div>
+
+    <!-- CONTRACTS -->
+    <div id="page-contracts" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'sc-add')">New Contract</div>
+        <div class="sub-tab" onclick="showSub(this,'sc-cancel')">Cancel Contract</div>
+        <div class="sub-tab" onclick="showSub(this,'sc-qry')">Queries</div>
+      </div>
+      <div id="sc-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Create Sales Contract</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>VIN</label><input id="sc_vin" type="text" placeholder="JHMFC1F30MX000002"></div>
+            <div class="form-group"><label>Customer ID</label><input id="sc_cid" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Dealership ID</label><input id="sc_did" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Contract Date</label><input id="sc_date" type="date"></div>
+            <div class="form-group"><label>Agreed Price</label><input id="sc_price" type="number" placeholder="3500000"></div>
+            <div class="form-group"><label>Discount</label><input id="sc_disc" type="number" placeholder="50000"></div>
+            <div class="form-group"><label>Tax</label><input id="sc_tax" type="number" placeholder="175000"></div>
+            <div class="form-group"><label>Payment Mode</label><select id="sc_mode"><option>Cash</option><option>Installment</option><option>Lease</option></select></div>
+            <div class="form-group"><label>Status</label><select id="sc_status"><option>Pending</option><option>Signed</option><option>Cancelled</option></select></div>
+          </div>
+          <p class="form-hint">💡 Setting Signed will auto-mark vehicle as Sold via trigger.</p>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['sc_vin','sc_cid','sc_did','sc_price','sc_disc','sc_tax'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO SalesContracts (vin,customer_id,dealership_id,contract_date,agreed_price,discount,tax,payment_mode,status) VALUES (?,?,?,?,?,?,?,?,?)',['sc_vin','sc_cid','sc_did','sc_date','sc_price','sc_disc','sc_tax','sc_mode','sc_status'],'Contract created')">Save Contract</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="sc-cancel" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Cancel Contract</h3></div><div class="panel-body">
+          <p class="dbf-desc">⚠️ Cancelling a contract automatically restores the vehicle's inventory status to <strong>Available</strong> via <strong>trg_ContractCancelled_RestoreInventory</strong> trigger. Enter a Contract ID, cancel it, and watch the trigger fire.</p>
+          <div class="form-grid" style="max-width:300px">
+            <div class="form-group"><label>Contract ID</label><input id="sc_cancel_id" type="number" placeholder="e.g. 1"></div>
+          </div>
+          <div class="btn-row" style="justify-content:flex-start">
+            <button class="btn-primary" onclick="cancelContract()" style="background:linear-gradient(to bottom,#dc2626,#991b1b)">✗ Cancel &amp; Show Trigger</button>
+          </div>
+          <div id="sc_cancel_result" class="dbf-result" style="display:none"></div>
+        </div></div>
+      </div>
+      <div id="sc-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Contracts</h3></div><div class="panel-body"><div id="qp-contracts"></div></div></div>
+      </div>
+    </div>
+
+    <!-- FINANCING -->
+    <div id="page-financing" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'fp-add')">Add Plan</div>
+        <div class="sub-tab" onclick="showSub(this,'fp-qry')">Queries</div>
+      </div>
+      <div id="fp-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Add Financing Plan</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Contract ID</label><input id="fp_cid" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Bank Name</label><input id="fp_bank" type="text" placeholder="MCB Bank"></div>
+            <div class="form-group"><label>Down Payment</label><input id="fp_down" type="number" placeholder="700000"></div>
+            <div class="form-group"><label>Tenure (Months)</label><input id="fp_tenure" type="number" placeholder="36"></div>
+            <div class="form-group"><label>Monthly Installment</label><input id="fp_inst" type="number" placeholder="88000"></div>
+            <div class="form-group"><label>Interest Rate (%)</label><input id="fp_rate" type="number" step="0.01" placeholder="14.50"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['fp_cid','fp_bank','fp_down','fp_tenure','fp_inst','fp_rate'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO FinancingPlans (contract_id,bank_name,down_payment,tenure_months,monthly_installment,interest_rate) VALUES (?,?,?,?,?,?)',['fp_cid','fp_bank','fp_down','fp_tenure','fp_inst','fp_rate'],'Financing plan added')">Save Plan</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="fp-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Financing</h3></div><div class="panel-body"><div id="qp-financing"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PARTS ORDERS -->
+    <div id="page-parts" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'po-add')">New Order</div>
+        <div class="sub-tab" onclick="showSub(this,'po-upd')">Update Status</div>
+        <div class="sub-tab" onclick="showSub(this,'po-qry')">Queries</div>
+      </div>
+      <div id="po-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>New Parts Order</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Dealership ID</label><input id="po_did" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Part Name</label><input id="po_name" type="text" placeholder="Air Filter"></div>
+            <div class="form-group"><label>Part Number</label><input id="po_num" type="text" placeholder="AF-1001"></div>
+            <div class="form-group"><label>Quantity</label><input id="po_qty" type="number" placeholder="20"></div>
+            <div class="form-group"><label>Unit Price</label><input id="po_price" type="number" placeholder="1500"></div>
+            <div class="form-group"><label>Order Date</label><input id="po_date" type="date"></div>
+            <div class="form-group"><label>Status</label><select id="po_status"><option>Pending</option><option>Dispatched</option><option>Delivered</option></select></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['po_did','po_name','po_num','po_qty','po_price'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO PartsOrders (dealership_id,part_name,part_number,quantity,unit_price,order_date,status) VALUES (?,?,?,?,?,?,?)',['po_did','po_name','po_num','po_qty','po_price','po_date','po_status'],'Parts order placed')">Place Order</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="po-upd" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Update Parts Order Status</h3></div><div class="panel-body">
+          <div class="form-grid" style="max-width:500px">
+            <div class="form-group"><label>Order ID</label><input id="pou_id" type="number" placeholder="1"></div>
+            <div class="form-group"><label>New Status</label><select id="pou_status"><option>Dispatched</option><option>Delivered</option></select></div>
+          </div>
+          <div class="btn-row" style="justify-content:flex-start">
+            <button class="btn-primary" onclick="updatePartsStatus()">Update Status</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="po-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Parts Orders</h3></div><div class="panel-body"><div id="qp-parts"></div></div></div>
+      </div>
+    </div>
+
+    <!-- SERVICE -->
+    <div id="page-service" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'sv-add')">Book Appointment</div>
+        <div class="sub-tab" onclick="showSub(this,'sv-upd')">Update Status</div>
+        <div class="sub-tab" onclick="showSub(this,'sv-qry')">Queries</div>
+      </div>
+      <div id="sv-add" class="sub-panel active">
+        <div class="panel"><div class="panel-header"><h3>Book Service Appointment</h3></div><div class="panel-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Customer ID</label><input id="sv_cid" type="number" placeholder="1"></div>
+            <div class="form-group"><label>Dealership ID</label><input id="sv_did" type="number" placeholder="1"></div>
+            <div class="form-group"><label>VIN</label><input id="sv_vin" type="text" placeholder="JHMFC1F30MX000001"></div>
+            <div class="form-group"><label>Appointment Date</label><input id="sv_date" type="date"></div>
+            <div class="form-group"><label>Service Type</label><select id="sv_type"><option>Oil Change</option><option>Full Service</option><option>Repair</option><option>Inspection</option></select></div>
+            <div class="form-group"><label>Status</label><select id="sv_status"><option>Scheduled</option><option>Completed</option><option>Cancelled</option></select></div>
+            <div class="form-group"><label>Technician</label><input id="sv_tech" type="text" placeholder="Kamran Sheikh"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="clearIds(['sv_cid','sv_did','sv_vin','sv_tech'])">Clear</button>
+            <button class="btn-primary" onclick="dbWrite('INSERT INTO ServiceAppointments (customer_id,dealership_id,vin,appointment_date,service_type,status,technician_name) VALUES (?,?,?,?,?,?,?)',['sv_cid','sv_did','sv_vin','sv_date','sv_type','sv_status','sv_tech'],'Appointment booked')">Book Appointment</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="sv-upd" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Update Appointment Status</h3></div><div class="panel-body">
+          <div class="form-grid" style="max-width:500px">
+            <div class="form-group"><label>Appointment ID</label><input id="svu_id" type="number" placeholder="1"></div>
+            <div class="form-group"><label>New Status</label><select id="svu_status"><option>Completed</option><option>Cancelled</option></select></div>
+          </div>
+          <div class="btn-row" style="justify-content:flex-start">
+            <button class="btn-primary" onclick="updateServiceStatus()">Update Status</button>
+          </div>
+        </div></div>
+      </div>
+      <div id="sv-qry" class="sub-panel">
+        <div class="panel"><div class="panel-header"><h3>Query Service</h3></div><div class="panel-body"><div id="qp-service"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="page-analytics" class="page">
+      <div class="sub-tabs">
+        <div class="sub-tab active" onclick="showSub(this,'an-inv')">📦 Inventory</div>
+        <div class="sub-tab" onclick="showSub(this,'an-cust')">👤 Customers</div>
+        <div class="sub-tab" onclick="showSub(this,'an-sales')">💰 Sales</div>
+        <div class="sub-tab" onclick="showSub(this,'an-parts')">🔧 Parts</div>
+        <div class="sub-tab" onclick="showSub(this,'an-svc')">🔩 Service</div>
+        <div class="sub-tab" onclick="showSub(this,'an-cross')">🔀 Cross-Domain</div>
+      </div>
+      <div id="an-inv" class="sub-panel active"><div id="qp-an-inv"></div></div>
+      <div id="an-cust" class="sub-panel"><div id="qp-an-cust"></div></div>
+      <div id="an-sales" class="sub-panel"><div id="qp-an-sales"></div></div>
+      <div id="an-parts" class="sub-panel"><div id="qp-an-parts"></div></div>
+      <div id="an-svc" class="sub-panel"><div id="qp-an-svc"></div></div>
+      <div id="an-cross" class="sub-panel"><div id="qp-an-cross"></div></div>
+    </div>
+
+    <!-- DB FEATURES PAGE -->
+    <div id="page-dbfeatures" class="page">
+
+      <!-- STORED PROCEDURES -->
+      <div class="section-head"><h2>STORED PROCEDURES</h2><div class="line"></div><span class="dbf-badge sp">4 Procedures</span></div>
+
+      <div class="dbf-grid">
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>sp_RegisterSale — Atomic Sale Transaction</h3>
+            <span class="dbf-tag">TRANSACTION + ROLLBACK</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Validates vehicle availability, inserts the SalesContract, and marks inventory as Sold — all in one atomic transaction. Rolls back everything if any step fails.</p>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="form-group"><label>VIN</label><input id="sp1_vin" type="text" placeholder="JHMFC1F30MX000002"></div>
+              <div class="form-group"><label>Customer ID</label><input id="sp1_cid" type="number" placeholder="2"></div>
+              <div class="form-group"><label>Dealership ID</label><input id="sp1_did" type="number" placeholder="1"></div>
+              <div class="form-group"><label>Agreed Price</label><input id="sp1_price" type="number" placeholder="5200000"></div>
+              <div class="form-group"><label>Discount</label><input id="sp1_disc" type="number" placeholder="0"></div>
+              <div class="form-group"><label>Tax</label><input id="sp1_tax" type="number" placeholder="260000"></div>
+              <div class="form-group"><label>Payment Mode</label><select id="sp1_mode"><option>Cash</option><option>Installment</option><option>Lease</option></select></div>
+            </div>
+            <div class="btn-row">
+              <button class="btn-primary" onclick="runSP_RegisterSale()">▶ Execute sp_RegisterSale</button>
+            </div>
+            <div id="sp1_result" class="dbf-result" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>sp_CustomerProfile — Multi-Result Profile</h3>
+            <span class="dbf-tag">MULTI RESULT SET</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Returns three result sets in one call: customer info, all their contracts, and their full service history.</p>
+            <div class="form-grid" style="margin-bottom:12px;max-width:280px">
+              <div class="form-group"><label>Customer ID</label><input id="sp2_cid" type="number" placeholder="1"></div>
+            </div>
+            <div class="btn-row"><button class="btn-primary" onclick="runSP_CustomerProfile()">▶ Execute sp_CustomerProfile</button></div>
+            <div id="sp2_info" class="dbf-result" style="display:none"></div>
+            <div id="sp2_contracts" class="dbf-result" style="display:none;margin-top:14px"></div>
+            <div id="sp2_service" class="dbf-result" style="display:none;margin-top:14px"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>sp_MonthlySalesReport — Revenue Breakdown</h3>
+            <span class="dbf-tag">AGGREGATION</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Generates a detailed monthly sales report for a dealership with a summary row showing total revenue and average sale price.</p>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="form-group"><label>Dealership ID</label><input id="sp3_did" type="number" placeholder="1"></div>
+              <div class="form-group"><label>Year</label><input id="sp3_year" type="number" placeholder="2024"></div>
+              <div class="form-group"><label>Month</label><input id="sp3_month" type="number" placeholder="1" min="1" max="12"></div>
+            </div>
+            <div class="btn-row"><button class="btn-primary" onclick="runSP_MonthlyReport()">▶ Execute sp_MonthlySalesReport</button></div>
+            <div id="sp3_result" class="dbf-result" style="display:none"></div>
+            <div id="sp3_summary" class="dbf-result" style="display:none;margin-top:14px"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>sp_BookService — Duplicate Guard</h3>
+            <span class="dbf-tag">VALIDATION LOGIC</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Books a service appointment but first checks whether the same VIN already has a Scheduled appointment on that date — prevents duplicates at the database level.</p>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="form-group"><label>Customer ID</label><input id="sp4_cid" type="number" placeholder="3"></div>
+              <div class="form-group"><label>Dealership ID</label><input id="sp4_did" type="number" placeholder="2"></div>
+              <div class="form-group"><label>VIN</label><input id="sp4_vin" type="text" placeholder="JHMFC1F30MX000003"></div>
+              <div class="form-group"><label>Appointment Date</label><input id="sp4_date" type="date"></div>
+              <div class="form-group"><label>Service Type</label><select id="sp4_type"><option>Oil Change</option><option>Full Service</option><option>Repair</option><option>Inspection</option></select></div>
+              <div class="form-group"><label>Technician</label><input id="sp4_tech" type="text" placeholder="Kamran Sheikh"></div>
+            </div>
+            <div class="btn-row"><button class="btn-primary" onclick="runSP_BookService()">▶ Execute sp_BookService</button></div>
+            <div id="sp4_result" class="dbf-result" style="display:none"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TRIGGERS -->
+      <div class="section-head" style="margin-top:12px"><h2>TRIGGERS</h2><div class="line"></div><span class="dbf-badge trg">4 Triggers</span></div>
+      <div class="dbf-grid">
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>trg_ContractSigned_UpdateInventory</h3>
+            <span class="dbf-tag">AFTER INSERT/UPDATE</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Fires after a SalesContract is inserted or updated. When status = Signed, automatically sets the vehicle's Inventory status to Sold. Demonstrate by checking VIN status before and after signing a contract.</p>
+            <div class="form-grid" style="margin-bottom:12px;max-width:280px">
+              <div class="form-group"><label>VIN to Check</label><input id="trg1_vin" type="text" placeholder="JHMFC1F30MX000002"></div>
+            </div>
+            <div class="btn-row"><button class="btn-ghost" onclick="checkTriggerInventory()">▶ Show Inventory Status</button></div>
+            <div id="trg1_result" class="dbf-result" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>trg_PreventDoubleSale</h3>
+            <span class="dbf-tag">INSTEAD OF INSERT</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Fires instead of a contract INSERT. If the vehicle is already Sold, it raises an error and blocks the insert. Try inserting a contract for a VIN that is already Sold to see the trigger block it.</p>
+            <div class="form-grid" style="margin-bottom:12px;max-width:280px">
+              <div class="form-group"><label>Already-Sold VIN</label><input id="trg2_vin" type="text" placeholder="JHMFC1F30MX000001"></div>
+            </div>
+            <div class="btn-row"><button class="btn-ghost" onclick="testDoubleSleTrigger()">▶ Attempt Double Sale</button></div>
+            <div id="trg2_result" class="dbf-result" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>trg_ContractCancelled_RestoreInventory</h3>
+            <span class="dbf-tag">AFTER UPDATE</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Fires after a contract is updated to Cancelled. Automatically restores the vehicle's Inventory status back to Available. Enter a contract ID to cancel it and watch the VIN revert.</p>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="form-group"><label>Contract ID to Cancel</label><input id="trg3_cid" type="number" placeholder="1"></div>
+            </div>
+            <div class="btn-row"><button class="btn-ghost" onclick="testCancelTrigger()">▶ Cancel Contract</button></div>
+            <div id="trg3_result" class="dbf-result" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3>trg_ContractPending_ReserveInventory</h3>
+            <span class="dbf-tag">AFTER INSERT</span>
+          </div>
+          <div class="panel-body">
+            <p class="dbf-desc">Fires after a Pending contract is inserted. Automatically sets the vehicle status to Reserved so it can't be sold to someone else while the contract is being negotiated. Check any VIN's current status below.</p>
+            <div class="form-grid" style="margin-bottom:12px;max-width:280px">
+              <div class="form-group"><label>VIN to Check</label><input id="trg4_vin" type="text" placeholder="JHMFC1F30MX000003"></div>
+            </div>
+            <div class="btn-row"><button class="btn-ghost" onclick="checkTriggerReserve()">▶ Check Status</button></div>
+            <div id="trg4_result" class="dbf-result" style="display:none"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- VIEWS -->
+      <div class="section-head" style="margin-top:12px"><h2>VIEWS</h2><div class="line"></div><span class="dbf-badge vw">5 Views</span></div>
+      <div class="panel">
+        <div class="panel-header"><h3>Query a View directly</h3></div>
+        <div class="panel-body">
+          <div class="query-bar">
+            <div class="form-group">
+              <label>Select View</label>
+              <select id="view-sel">
+                <option value="vw_InventoryFull">vw_InventoryFull — Full inventory with model & dealership details</option>
+                <option value="vw_SignedContracts">vw_SignedContracts — All completed sales with net amount</option>
+                <option value="vw_DealershipRevenue">vw_DealershipRevenue — Revenue summary per dealership</option>
+                <option value="vw_AvailableStock">vw_AvailableStock — Available units per model</option>
+                <option value="vw_ServiceHistory">vw_ServiceHistory — Full service log per VIN</option>
+              </select>
+            </div>
+            <button class="btn-ghost" onclick="runView()">▶ SELECT * FROM View</button>
+          </div>
+          <div id="view-result"><div class="empty-state"><div class="empty-icon">◻</div><p>Select a view and run it</p></div></div>
+        </div>
+      </div>
+
+      <!-- INDEXES -->
+      <div class="section-head" style="margin-top:12px"><h2>INDEXES</h2><div class="line"></div><span class="dbf-badge idx">13 Indexes</span></div>
+      <div class="panel">
+        <div class="panel-header"><h3>All Indexes in honda_dms</h3></div>
+        <div class="panel-body">
+          <div class="btn-row" style="justify-content:flex-start;margin-bottom:14px">
+            <button class="btn-ghost" onclick="runIndexQuery()">▶ Show All Indexes</button>
+          </div>
+          <div id="idx-result"><div class="empty-state"><div class="empty-icon">⬡</div><p>Click to load index list from SQL Server</p></div></div>
+        </div>
+      </div>
+
+    </div><!-- /page-dbfeatures -->
+
+  </div>
+</div>
+
+<div id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
+
+<script>
+const API = 'http://localhost:5000';
+
+// ── CONNECTION CHECK ──────────────────────────────────────────────────────────
+async function checkConnection() {
+  try {
+    const r = await fetch(API + '/ping');
+    const d = await r.json();
+    const dot = document.getElementById('conn-status');
+    const lbl = document.getElementById('conn-label');
+    if (d.status === 'connected') {
+      dot.className = 'ok'; lbl.textContent = 'Connected';
+    } else {
+      dot.className = 'err'; lbl.textContent = 'Disconnected';
+    }
+  } catch {
+    document.getElementById('conn-status').className = 'err';
+    document.getElementById('conn-label').textContent = 'API offline';
+  }
+}
+checkConnection();
+setInterval(checkConnection, 30000);
+
+checkConnection();
+setInterval(checkConnection, 30000);
+
+// ── LIVE DASHBOARD ────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  async function q(sql) {
+    try {
+      const r = await fetch(API+'/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sql,params:[]})});
+      const d = await r.json();
+      return d.error ? null : d;
+    } catch { return null; }
+  }
+  function pkr(n) {
+    if (n == null || n === '') return '—';
+    const num = parseFloat(n);
+    if (num >= 1e7) return (num/1e7).toFixed(2) + ' Cr';
+    if (num >= 1e5) return (num/1e5).toFixed(1) + ' Lac';
+    return num.toLocaleString();
+  }
+
+  // KPI 1 — Revenue
+  const rev = await q("SELECT SUM(agreed_price-discount+tax) AS rev, COUNT(*) AS cnt FROM SalesContracts WHERE status='Signed'");
+  if (rev?.rows.length) {
+    document.getElementById('kpi-revenue').textContent    = pkr(rev.rows[0][0]);
+    document.getElementById('kpi-revenue-sub').textContent = `From ${rev.rows[0][1]} signed contract(s)`;
+  }
+  // KPI 2 — Available
+  const avail = await q("SELECT COUNT(*) FROM Inventory WHERE status='Available'");
+  if (avail?.rows.length) {
+    document.getElementById('kpi-available').textContent    = avail.rows[0][0];
+    document.getElementById('kpi-available-sub').textContent = 'Ready to sell right now';
+  }
+  // KPI 3 — Total contracts
+  const contr = await q("SELECT COUNT(*) FROM SalesContracts");
+  if (contr?.rows.length) {
+    document.getElementById('kpi-contracts').textContent    = contr.rows[0][0];
+    document.getElementById('kpi-contracts-sub').textContent = 'Signed + Pending + Cancelled';
+  }
+  // KPI 4 — Pending
+  const pend = await q("SELECT COUNT(*) FROM SalesContracts WHERE status='Pending'");
+  if (pend?.rows.length) {
+    document.getElementById('kpi-pending').textContent    = pend.rows[0][0];
+    document.getElementById('kpi-pending-sub').textContent = 'Awaiting signature';
+  }
+  // KPI 5 — Customers
+  const custs = await q("SELECT COUNT(*) FROM Customers");
+  if (custs?.rows.length) {
+    document.getElementById('kpi-customers').textContent    = custs.rows[0][0];
+    document.getElementById('kpi-customers-sub').textContent = 'Registered buyers';
+  }
+  // KPI 6 — Parts
+  const parts = await q("SELECT COUNT(*) FROM PartsOrders");
+  const partsPend = await q("SELECT COUNT(*) FROM PartsOrders WHERE status='Pending'");
+  if (parts?.rows.length) {
+    document.getElementById('kpi-parts').textContent    = parts.rows[0][0];
+    document.getElementById('kpi-parts-sub').textContent = `${partsPend?.rows[0][0] ?? '?'} pending delivery`;
+  }
+  // KPI 7 — Service
+  const svc = await q("SELECT COUNT(*) FROM ServiceAppointments");
+  const svcSch = await q("SELECT COUNT(*) FROM ServiceAppointments WHERE status='Scheduled'");
+  if (svc?.rows.length) {
+    document.getElementById('kpi-service').textContent    = svc.rows[0][0];
+    document.getElementById('kpi-service-sub').textContent = `${svcSch?.rows[0][0] ?? '?'} scheduled`;
+  }
+  // KPI 8 — Sold
+  const sold = await q("SELECT COUNT(*) FROM Inventory WHERE status='Sold'");
+  if (sold?.rows.length) {
+    document.getElementById('kpi-sold').textContent    = sold.rows[0][0];
+    document.getElementById('kpi-sold-sub').textContent = 'Total vehicles delivered';
+  }
+
+  // Most Recent Sale
+  const recent = await q(`SELECT TOP 1 c.full_name, vm.model_name, d.dealership_name,
+    sc.contract_date, sc.agreed_price-sc.discount+sc.tax AS net, sc.payment_mode, sc.vin
+    FROM SalesContracts sc
+    JOIN Customers c ON sc.customer_id=c.customer_id
+    JOIN Dealerships d ON sc.dealership_id=d.dealership_id
+    JOIN Inventory i ON sc.vin=i.vin
+    JOIN VehicleModels vm ON i.model_id=vm.model_id
+    WHERE sc.status='Signed' ORDER BY sc.contract_id DESC`);
+  const recentDiv = document.getElementById('dash-recent-sale');
+  if (recent?.rows.length) {
+    const [customer,model,dealership,date,amount,mode,vin] = recent.rows[0];
+    recentDiv.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:20px;align-items:center;padding:4px 0">
+      <div><div class="kpi-label">Customer</div><div style="font-size:16px;font-weight:600;color:var(--text)">${customer}</div></div>
+      <div><div class="kpi-label">Model</div><div style="font-size:15px;font-weight:600;color:var(--text)">${model}</div></div>
+      <div><div class="kpi-label">Dealership</div><div style="font-size:13px;color:var(--text)">${dealership}</div></div>
+      <div><div class="kpi-label">Date</div><div style="font-size:13px;color:var(--text)">${String(date).substring(0,10)}</div></div>
+      <div><div class="kpi-label">Net Amount</div><div style="font-size:20px;font-weight:700;color:var(--red)">${pkr(amount)}</div></div>
+      <div><div class="kpi-label">Payment</div><span class="badge badge-blue">${mode}</span></div>
+      <div><div class="kpi-label">VIN</div><div style="font-family:var(--mono);font-size:11px;color:var(--muted)">${vin}</div></div>
+    </div>`;
+  } else {
+    recentDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">◈</div><p>No signed contracts yet</p></div>';
+  }
+
+  // Top Dealership
+  const top = await q(`SELECT TOP 1 d.dealership_name, d.city,
+    COUNT(sc.contract_id) AS sales,
+    SUM(sc.agreed_price-sc.discount+sc.tax) AS rev
+    FROM Dealerships d
+    JOIN SalesContracts sc ON d.dealership_id=sc.dealership_id AND sc.status='Signed'
+    GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY rev DESC`);
+  const topDiv = document.getElementById('dash-top-dealer');
+  if (top?.rows.length) {
+    const [name,city,sales,revenue] = top.rows[0];
+    topDiv.innerHTML = `<div style="text-align:center;padding:10px 0">
+      <div style="font-family:var(--display);font-size:26px;color:var(--red);letter-spacing:.04em">${name}</div>
+      <div style="color:var(--muted);font-size:12px;margin:4px 0 16px">${city}</div>
+      <div style="display:flex;gap:32px;justify-content:center">
+        <div><div class="kpi-label">Sales</div><div class="kpi-value">${sales}</div></div>
+        <div><div class="kpi-label">Revenue</div><div class="kpi-value red">${pkr(revenue)}</div></div>
+      </div></div>`;
+  } else { topDiv.innerHTML='<div class="empty-state"><p>No signed contracts yet</p></div>'; }
+
+  // Pending Parts
+  const pp = await q(`SELECT TOP 5 d.dealership_name, po.part_name, po.quantity,
+    DATEDIFF(DAY,po.order_date,GETDATE()) AS days_waiting
+    FROM PartsOrders po JOIN Dealerships d ON po.dealership_id=d.dealership_id
+    WHERE po.status='Pending' ORDER BY days_waiting DESC`);
+  const ppDiv = document.getElementById('dash-pending-parts');
+  if (pp?.rows.length) {
+    const rows = pp.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td style="color:var(--red)">${r[3]}d</td></tr>`).join('');
+    ppDiv.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Dealership</th><th>Part</th><th>Qty</th><th>Waiting</th></tr></thead><tbody>${rows}</tbody></table><div class="table-footer"><span>${pp.rows.length} pending order(s)</span></div></div>`;
+  } else { ppDiv.innerHTML='<div class="empty-state"><p>No pending orders</p></div>'; }
+
+  // Inventory Breakdown
+  const inv = await q(`SELECT d.dealership_name,
+    SUM(CASE WHEN i.status='Available'  THEN 1 ELSE 0 END) AS available,
+    SUM(CASE WHEN i.status='Reserved'   THEN 1 ELSE 0 END) AS reserved,
+    SUM(CASE WHEN i.status='Sold'       THEN 1 ELSE 0 END) AS sold,
+    SUM(CASE WHEN i.status='In Transit' THEN 1 ELSE 0 END) AS in_transit,
+    COUNT(i.vin) AS total
+    FROM Dealerships d LEFT JOIN Inventory i ON d.dealership_id=i.dealership_id
+    GROUP BY d.dealership_id,d.dealership_name ORDER BY d.dealership_name`);
+  const invDiv = document.getElementById('dash-inventory-breakdown');
+  if (inv) renderTable(inv.cols, inv.rows, inv.count, invDiv);
+}
+
+// ── PAGE NAV ──────────────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = {
+    dashboard:'DASHBOARD', plants:'PLANTS', models:'VEHICLE MODELS', production:'PRODUCTION',
+    dealerships:'DEALERSHIPS', inventory:'INVENTORY', customers:'CUSTOMERS',
+    contracts:'CONTRACTS', financing:'FINANCING', parts:'PARTS ORDERS',
+    service:'SERVICE', analytics:'ANALYTICS', dbfeatures:'DB FEATURES'
+  };
+  document.getElementById('topbar-title').textContent = titles[id] || id.toUpperCase();
+  if (id === 'dashboard') loadDashboard();
+}
+
+function showSub(el, panelId) {
+  const page = el.closest('.page');
+  page.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+  page.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  t.className = type;
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function clearIds(ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); }
+
+// ── DB WRITE ──────────────────────────────────────────────────────────────────
+async function dbWrite(sql, paramIds, successMsg) {
+  const params = paramIds.map(id => val(id));
+  if (params.some(p => p === '')) { toast('Fill in all required fields', 'error'); return; }
+  try {
+    const r = await fetch(API + '/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql, params })
+    });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); }
+    else { toast(successMsg, 'success'); }
+  } catch (e) { toast('API error: ' + e.message, 'error'); }
+}
+
+// ── DB QUERY → TABLE ──────────────────────────────────────────────────────────
+async function dbQuery(sql, params, targetDiv) {
+  try {
+    const r = await fetch(API + '/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql, params })
+    });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    renderTable(d.cols, d.rows, d.count, targetDiv);
+  } catch (e) { toast('API error: ' + e.message, 'error'); }
+}
+
+function renderTable(cols, rows, count, container) {
+  const statusMap = {
+    'Available':'badge-green','Signed':'badge-green','Completed':'badge-green','Delivered':'badge-green',
+    'Reserved':'badge-amber','Pending':'badge-amber','Scheduled':'badge-blue',
+    'Sold':'badge-gray','Cancelled':'badge-red','In Transit':'badge-blue','Dispatched':'badge-blue',
+    'HIGH RISK':'badge-red','MONITOR':'badge-amber','OK':'badge-green'
+  };
+  let th = cols.map(c => `<th>${c}</th>`).join('');
+  let tb = rows.map(row =>
+    '<tr>' + row.map(cell => {
+      const s = String(cell);
+      const badge = statusMap[s];
+      if (badge) return `<td><span class="badge ${badge}">${s}</span></td>`;
+      // Mono for VINs, IDs, numbers
+      if (/^[A-Z0-9]{17}$/.test(s) || /^\d+$/.test(s) || s.startsWith('JHM')) return `<td class="mono">${s}</td>`;
+      return `<td>${s}</td>`;
+    }).join('') + '</tr>'
+  ).join('');
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table><thead><tr>${th}</tr></thead><tbody>${tb || '<tr><td colspan="${cols.length}" style="text-align:center;color:var(--sub);padding:30px">No records found</td></tr>'}</tbody></table>
+      <div class="table-footer">
+        <span>${count} record(s) returned</span>
+        <button class="btn-csv" onclick="exportCSV(this)">⬇ CSV</button>
+      </div>
+    </div>`;
+}
+
+// ── LOAD RECORD FOR MODIFY ────────────────────────────────────────────────────
+async function loadRecord(sql, idInputId, fieldIds) {
+  const idVal = val(idInputId);
+  if (!idVal) { toast('Enter an ID first', 'error'); return; }
+  try {
+    const r = await fetch(API + '/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql, params: [idVal] })
+    });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    if (!d.rows.length) { toast('No record found with that ID', 'error'); return; }
+    const row = d.rows[0];
+    // row[0] is the ID column, skip it; map rest to fields
+    fieldIds.forEach((fid, i) => {
+      const el = document.getElementById(fid);
+      if (el) el.value = row[i + 1] || '';
+    });
+    toast('Record loaded', 'success');
+  } catch (e) { toast('API error: ' + e.message, 'error'); }
+}
+
+// ── QUERY PANEL BUILDER ───────────────────────────────────────────────────────
+function buildQueryPanel(containerId, queries) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const resultId = containerId + '-result';
+  container.innerHTML = `
+    <div class="query-bar">
+      <div class="form-group">
+        <label>Query</label>
+        <select id="${containerId}-sel" onchange="updateParams('${containerId}')">
+          ${queries.map((q,i) => `<option value="${i}">${q[0]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group param-group" id="${containerId}-p1g" style="display:none">
+        <label id="${containerId}-p1l">Param</label>
+        <input type="text" id="${containerId}-p1" placeholder="Enter value">
+      </div>
+      <div class="form-group param-group" id="${containerId}-p2g" style="display:none">
+        <label id="${containerId}-p2l">Param 2</label>
+        <input type="text" id="${containerId}-p2" placeholder="Enter value">
+      </div>
+      <button class="btn-ghost" onclick="runQueryPanel('${containerId}')">▶ Run Query</button>
+    </div>
+    <div id="${resultId}"><div class="empty-state"><div class="empty-icon">◈</div><p>Select a query and click Run</p></div></div>
+  `;
+  container._queries = queries;
+  updateParams(containerId);
+}
+
+function updateParams(containerId) {
+  const sel   = document.getElementById(containerId + '-sel');
+  const idx   = parseInt(sel.value);
+  const queries = document.getElementById(containerId)._queries;
+  const params  = queries[idx][2];
+
+  const p1g = document.getElementById(containerId + '-p1g');
+  const p1l = document.getElementById(containerId + '-p1l');
+  const p1  = document.getElementById(containerId + '-p1');
+  const p2g = document.getElementById(containerId + '-p2g');
+  const p2l = document.getElementById(containerId + '-p2l');
+  const p2  = document.getElementById(containerId + '-p2');
+
+  if (params.length >= 1) { p1g.style.display='flex'; p1g.style.flexDirection='column'; p1g.style.gap='6px'; p1l.textContent = params[0]; p1.value=''; } else { p1g.style.display='none'; }
+  if (params.length >= 2) { p2g.style.display='flex'; p2g.style.flexDirection='column'; p2g.style.gap='6px'; p2l.textContent = params[1]; p2.value=''; } else { p2g.style.display='none'; }
+}
+
+async function runQueryPanel(containerId) {
+  const sel    = document.getElementById(containerId + '-sel');
+  const idx    = parseInt(sel.value);
+  const queries = document.getElementById(containerId)._queries;
+  const [, sql, paramLabels] = queries[idx];
+
+  let params = [];
+  if (paramLabels.length >= 1) {
+    const v = document.getElementById(containerId + '-p1').value.trim();
+    if (!v) { toast('Fill in the parameter field', 'error'); return; }
+    // For Q31 which repeats the same VIN 5 times
+    const placeholderCount = (sql.match(/\?/g) || []).length;
+    params = Array(placeholderCount).fill(v);
+    if (paramLabels.length >= 2) {
+      params = [v, document.getElementById(containerId + '-p2').value.trim()];
+    }
+  }
+
+  const resultDiv = document.getElementById(containerId + '-result');
+  resultDiv.innerHTML = '<div class="empty-state"><p>Running query…</p></div>';
+  await dbQuery(sql, params, resultDiv);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── CSV EXPORT ─────────────────────────────
+function exportCSV(btn) {
+  const wrap = btn.closest('.table-wrap');
+  if (!wrap) return;
+  const table = wrap.querySelector('table');
+  if (!table) return;
+  const rows = [];
+  const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+  rows.push(headers.map(h => {
+    if (h.includes(',') || h.includes('"') || h.includes('\n')) return '"' + h.replace(/\"/g,'""') + '"';
+    return h;
+  }).join(','));
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    const cells = Array.from(tr.querySelectorAll('td')).map(td => {
+      let text = td.textContent.trim();
+      if (text.includes(',') || text.includes('"') || text.includes('\n')) text = '"' + text.replace(/\"/g,'""') + '"';
+      return text;
+    });
+    rows.push(cells.join(','));
+  });
+  const csv = '\uFEFF' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'honda_dms_export_' + new Date().toISOString().substring(0,10) + '.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+  toast('CSV exported', 'success');
+}
+
+// ── DELETE / CANCEL OPERATIONS ───────────────────
+
+async function cancelContract() {
+  const cid = val('sc_cancel_id');
+  if (!cid) { toast('Enter a Contract ID', 'error'); return; }
+  const resultDiv = document.getElementById('sc_cancel_result');
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div class="empty-state"><p>Processing\u2026</p></div>';
+  try {
+    const r1 = await fetch(API+'/query',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:'SELECT contract_id, vin, status, customer_id FROM SalesContracts WHERE contract_id=?',params:[cid]})});
+    const d1 = await r1.json();
+    if (!d1.rows.length) { resultDiv.innerHTML = '<div class="dbf-error">\u2717 No contract found with that ID</div>'; return; }
+    const [id, vin, status, custId] = d1.rows[0];
+    if (status === 'Cancelled') { resultDiv.innerHTML = '<div class="dbf-error">\u2717 This contract is already Cancelled</div>'; return; }
+    const r2 = await fetch(API+'/query',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:'SELECT vin, status FROM Inventory WHERE vin=?',params:[vin]})});
+    const d2 = await r2.json();
+    const oldInvStatus = d2.rows.length ? d2.rows[0][1] : 'unknown';
+    const r3 = await fetch(API+'/write',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:"UPDATE SalesContracts SET status='Cancelled' WHERE contract_id=?",params:[cid]})});
+    const d3 = await r3.json();
+    if (d3.error) { resultDiv.innerHTML = '<div class="dbf-error">\u2717 ' + d3.error + '</div>'; return; }
+    const r4 = await fetch(API+'/query',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:'SELECT vin, status FROM Inventory WHERE vin=?',params:[vin]})});
+    const d4 = await r4.json();
+    const newInvStatus = d4.rows.length ? d4.rows[0][1] : 'unknown';
+    resultDiv.innerHTML = `
+      <div class="dbf-success">\u2713 Contract #${cid} cancelled successfully! Trigger fired automatically.</div>
+      <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div style="background:rgba(255,255,255,.03);padding:14px;border-radius:6px;border-left:2px solid var(--red)">
+          <div class="kpi-label">Contract</div>
+          <div style="font-size:14px;font-weight:600">#${id} \u2192 Cancelled</div>
+          <div style="font-size:12px;color:var(--muted);font-family:var(--mono)">${vin}</div>
+        </div>
+        <div style="background:rgba(255,255,255,.03);padding:14px;border-radius:6px;border-left:2px solid #f87171">
+          <div class="kpi-label">Inventory BEFORE</div>
+          <div style="font-size:18px;font-weight:700;color:#f87171">${oldInvStatus}</div>
+        </div>
+        <div style="background:rgba(255,255,255,.03);padding:14px;border-radius:6px;border-left:2px solid #4ade80">
+          <div class="kpi-label">Inventory AFTER (trigger fired \u2705)</div>
+          <div style="font-size:18px;font-weight:700;color:#4ade80">${newInvStatus}</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--muted);padding:10px 14px;background:rgba(34,197,94,.08);border-radius:6px;border:1px solid rgba(34,197,94,.2)">
+        \u2705 <strong>trg_ContractCancelled_RestoreInventory</strong> fired automatically on SQL Server \u2014 no application code needed.
+        The VIN changed from <strong>${oldInvStatus}</strong> \u2192 <strong>${newInvStatus}</strong> entirely via the database trigger.
+      </div>`;
+    toast('Contract cancelled \u2014 trigger fired','success');
+  } catch(e) { resultDiv.innerHTML = '<div class="dbf-error">API error: ' + e.message + '</div>'; }
+}
+
+async function updateServiceStatus() {
+  const id = val('svu_id'), status = val('svu_status');
+  if (!id) { toast('Enter an Appointment ID','error'); return; }
+  try {
+    const r = await fetch(API+'/write',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:'UPDATE ServiceAppointments SET status=? WHERE appt_id=?',params:[status,id]})});
+    const d = await r.json();
+    if (d.error) { toast(d.error,'error'); return; }
+    toast('Appointment #' + id + ' marked as ' + status,'success');
+  } catch(e) { toast('API error: '+e.message,'error'); }
+}
+
+async function updatePartsStatus() {
+  const id = val('pou_id'), status = val('pou_status');
+  if (!id) { toast('Enter an Order ID','error'); return; }
+  try {
+    const r = await fetch(API+'/write',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:'UPDATE PartsOrders SET status=? WHERE order_id=?',params:[status,id]})});
+    const d = await r.json();
+    if (d.error) { toast(d.error,'error'); return; }
+    toast('Order #' + id + ' marked as ' + status,'success');
+  } catch(e) { toast('API error: '+e.message,'error'); }
+}
+
+// ── GLOBAL SEARCH ───────────────────────
+let searchTimeout;
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('global-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      const q = this.value.trim();
+      if (q.length < 2) { document.getElementById('global-search-results').style.display = 'none'; return; }
+      searchTimeout = setTimeout(function() { globalSearch(q); }, 300);
+    });
+  }
+  document.addEventListener('click', function(e) {
+    const t = e.target;
+    if (!t.closest('#global-search') && !t.closest('#global-search-results')) {
+      if (!document.body.contains(t)) return;
+      document.getElementById('global-search-results').style.display = 'none';
+    }
+  });
+});
+
+async function globalSearch(q) {
+  const resultsDiv = document.getElementById('global-search-results');
+  resultsDiv.style.display = 'block';
+  resultsDiv.innerHTML = '<div style="padding:12px;text-align:center;color:var(--sub)">Searching\u2026</div>';
+  try {
+    const like = '%' + q + '%';
+    const r = await fetch(API+'/query',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:"SELECT 'Customer' AS type, customer_id AS id, full_name AS name, phone AS info, '' AS vin FROM Customers WHERE full_name LIKE ? OR phone LIKE ? OR cnic LIKE ? UNION ALL SELECT 'Vehicle' AS type, 0, vm.model_name + ' - ' + i.color, i.status, i.vin FROM Inventory i JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.vin LIKE ? UNION ALL SELECT 'Contract' AS type, contract_id, sc.status + ' - ' + sc.payment_mode, c.full_name, sc.vin FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id WHERE sc.vin LIKE ? ORDER BY type, name",params:[like,like,like,like,like]})});
+    const d = await r.json();
+    if (d.error || !d.rows.length) {
+      resultsDiv.innerHTML = '<div style="padding:12px;text-align:center;color:var(--sub)">No results found</div>';
+      return;
+    }
+    let html = '<table style="font-size:12px"><thead><tr><th>Type</th><th>Info</th><th>Details</th><th>VIN</th></tr></thead><tbody>';
+    d.rows.forEach(function(row) {
+      const vals = row.map(function(v) { return v == null ? '' : String(v); });
+      const type = vals[0], id = vals[1], name = vals[2], info = vals[3], vin = vals[4];
+      const badge = type === 'Customer' ? 'badge-green' : type === 'Vehicle' ? 'badge-blue' : 'badge-amber';
+      html += '<tr onclick="showSearchDetail(\'' + type + '\',\'' + id + '\',\'' + vin + '\')">';
+      html += '<td><span class=\"badge ' + badge + '\">' + type + '</span></td>';
+      html += '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</td>';
+      html += '<td style="color:var(--muted);max-width:120px">' + info + '</td>';
+      html += '<td class="mono">' + vin + '</td></tr>';
+    });
+    html += '</tbody></table><div class="table-footer"><span>' + d.rows.length + ' result(s)</span></div>';
+    resultsDiv.innerHTML = html;
+  } catch(e) { resultsDiv.innerHTML = '<div style="padding:12px;text-align:center;color:var(--red)">API error</div>'; }
+}
+
+function showSearchDetail(type, id, vin) {
+  const resultsDiv = document.getElementById('global-search-results');
+  resultsDiv.innerHTML = '<div style="padding:12px;text-align:center;color:var(--sub)">Loading detail\u2026</div>';
+  let sql, params;
+  if (type === 'Customer') {
+    sql = 'SELECT * FROM Customers WHERE customer_id=?'; params = [id];
+  } else if (type === 'Vehicle') {
+    sql = "SELECT i.*, d.dealership_name, vm.model_name, vm.category, vm.engine_cc, vm.fuel_type, vm.transmission, vm.base_price FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.vin=?";
+    params = [vin];
+  } else {
+    sql = "SELECT sc.*, c.full_name, c.phone, c.email, d.dealership_name, vm.model_name, i.color, i.year FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE sc.contract_id=?";
+    params = [id];
+  }
+  fetch(API+'/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sql,params})})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if (d.error||!d.rows.length) { resultsDiv.innerHTML='<div style="padding:12px;text-align:center;color:var(--sub)">No details found</div>'; return; }
+    var row=d.rows[0], cols=d.cols, displayId=(type==='Vehicle'?vin:id);
+    var h='<div class="search-detail">';
+    h+='<div class="search-detail-top">';
+    h+='<span class="search-detail-back" onclick="var inp=document.getElementById(\'global-search\');if(inp.value.trim().length>=2){globalSearch(inp.value.trim())}">\u2190 Back</span>';
+    h+='<span class="search-detail-title">'+type+' #'+displayId+'</span>';
+
+    h+='</div><div class="search-detail-grid">';
+    for (var i=0;i<cols.length;i++) {
+      var v=row[i]==null?'':String(row[i]);
+      var lbl=cols[i].replace(/_/g,' '); lbl=lbl.charAt(0).toUpperCase()+lbl.slice(1);
+      var cls=(cols[i].toLowerCase().includes('vin')||cols[i].toLowerCase().includes('phone')||cols[i].toLowerCase().includes('cnic'))?' mono':'';
+      h+='<div class="search-detail-row"><span class="search-detail-label">'+lbl+'</span><span class="search-detail-value'+cls+'">'+v+'</span></div>';
+    }
+    h+='</div></div>';
+    resultsDiv.innerHTML=h;
+  })
+  .catch(function(){resultsDiv.innerHTML='<div style="padding:12px;text-align:center;color:var(--red)">API error</div>';});
+}
+
+function navigateFromSearch(type, id) {
+  document.getElementById('global-search-results').style.display = 'none';
+  document.getElementById('global-search').value = '';
+  const pageMap = { Customer:'customers', Vehicle:'inventory', Contract:'contracts' };
+  const page = pageMap[type] || 'dashboard';
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  document.querySelectorAll('.nav-item[onclick*="' + page + '"]').forEach(function(n) { n.classList.add('active'); });
+  showPage(page, null);
+  toast('Search: ' + type + ' #' + id, 'success');
+}
+
+
+// QUERY DEFINITIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+const PLANT_QUERIES = [
+  ["All Plants", "SELECT * FROM Plants ORDER BY country", []],
+  ["By Country", "SELECT * FROM Plants WHERE country = ? ORDER BY city", ["Country"]],
+  ["By Capacity (min)", "SELECT * FROM Plants WHERE annual_capacity >= ? ORDER BY annual_capacity DESC", ["Min Capacity"]],
+];
+
+const MODEL_QUERIES = [
+  ["All Vehicle Models", "SELECT * FROM VehicleModels ORDER BY model_name", []],
+  ["By Category", "SELECT * FROM VehicleModels WHERE category = ? ORDER BY base_price", ["Category"]],
+  ["By Fuel Type", "SELECT * FROM VehicleModels WHERE fuel_type = ? ORDER BY model_name", ["Fuel Type"]],
+  ["Price Range", "SELECT * FROM VehicleModels WHERE base_price BETWEEN ? AND ? ORDER BY base_price", ["Min Price", "Max Price"]],
+];
+
+const BATCH_QUERIES = [
+  ["All Production Batches", `SELECT pb.batch_id, p.plant_name, vm.model_name, pb.batch_date, pb.units_produced, pb.dispatch_date FROM ProductionBatches pb JOIN Plants p ON pb.plant_id=p.plant_id JOIN VehicleModels vm ON pb.model_id=vm.model_id ORDER BY pb.batch_date DESC`, []],
+  ["By Plant ID", `SELECT pb.batch_id, p.plant_name, vm.model_name, pb.batch_date, pb.units_produced FROM ProductionBatches pb JOIN Plants p ON pb.plant_id=p.plant_id JOIN VehicleModels vm ON pb.model_id=vm.model_id WHERE pb.plant_id=? ORDER BY pb.batch_date DESC`, ["Plant ID"]],
+  ["By Model ID", `SELECT pb.batch_id, p.plant_name, pb.batch_date, pb.units_produced FROM ProductionBatches pb JOIN Plants p ON pb.plant_id=p.plant_id WHERE pb.model_id=? ORDER BY pb.batch_date DESC`, ["Model ID"]],
+];
+
+const DEALERSHIP_QUERIES = [
+  ["All Dealerships", "SELECT * FROM Dealerships ORDER BY city", []],
+  ["By City", "SELECT * FROM Dealerships WHERE city = ? ORDER BY dealership_name", ["City"]],
+  ["By Region", "SELECT * FROM Dealerships WHERE region = ? ORDER BY city", ["Region"]],
+];
+
+const INVENTORY_QUERIES = [
+  ["All Inventory", `SELECT i.vin, d.dealership_name, vm.model_name, i.color, i.year, i.status, i.arrival_date FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id ORDER BY i.arrival_date DESC`, []],
+  ["Available Stock", `SELECT i.vin, d.dealership_name, vm.model_name, i.color, i.year FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.status='Available' ORDER BY vm.model_name`, []],
+  ["By Dealership ID", `SELECT i.vin, vm.model_name, i.color, i.year, i.status, i.arrival_date FROM Inventory i JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.dealership_id=? ORDER BY i.status`, ["Dealership ID"]],
+  ["By VIN", `SELECT i.vin, d.dealership_name, vm.model_name, i.color, i.year, i.status FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.vin=?`, ["VIN"]],
+  ["Stock Count by Model", `SELECT vm.model_name, COUNT(*) AS total, SUM(CASE WHEN i.status='Available' THEN 1 ELSE 0 END) AS available FROM Inventory i JOIN VehicleModels vm ON i.model_id=vm.model_id GROUP BY vm.model_name ORDER BY total DESC`, []],
+];
+
+const CUSTOMER_QUERIES = [
+  ["All Customers", "SELECT * FROM Customers ORDER BY full_name", []],
+  ["Search by Name", "SELECT * FROM Customers WHERE full_name LIKE ? ORDER BY full_name", ["Name (use % wildcard)"]],
+  ["Search by Phone", "SELECT * FROM Customers WHERE phone = ?", ["Phone"]],
+  ["Search by CNIC", "SELECT * FROM Customers WHERE cnic = ?", ["CNIC"]],
+];
+
+const CONTRACT_QUERIES = [
+  ["All Sales Contracts", `SELECT sc.contract_id, sc.vin, c.full_name AS customer, d.dealership_name, sc.contract_date, sc.agreed_price, sc.payment_mode, sc.status FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id ORDER BY sc.contract_date DESC`, []],
+  ["By Customer ID", `SELECT sc.contract_id, sc.vin, d.dealership_name, sc.contract_date, sc.agreed_price, sc.payment_mode, sc.status FROM SalesContracts sc JOIN Dealerships d ON sc.dealership_id=d.dealership_id WHERE sc.customer_id=?`, ["Customer ID"]],
+  ["By Status", `SELECT sc.contract_id, sc.vin, c.full_name AS customer, sc.contract_date, sc.agreed_price, sc.status FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id WHERE sc.status=? ORDER BY sc.contract_date DESC`, ["Status (Pending/Signed/Cancelled)"]],
+  ["Total Revenue", `SELECT COUNT(*) AS total_contracts, SUM(agreed_price-discount+tax) AS net_revenue FROM SalesContracts WHERE status='Signed'`, []],
+];
+
+const FINANCING_QUERIES = [
+  ["All Financing Plans", `SELECT fp.financing_id, fp.contract_id, c.full_name AS customer, fp.bank_name, fp.down_payment, fp.tenure_months, fp.monthly_installment, fp.interest_rate FROM FinancingPlans fp JOIN SalesContracts sc ON fp.contract_id=sc.contract_id JOIN Customers c ON sc.customer_id=c.customer_id ORDER BY fp.financing_id DESC`, []],
+  ["By Bank", `SELECT fp.financing_id, c.full_name AS customer, fp.down_payment, fp.tenure_months, fp.monthly_installment FROM FinancingPlans fp JOIN SalesContracts sc ON fp.contract_id=sc.contract_id JOIN Customers c ON sc.customer_id=c.customer_id WHERE fp.bank_name=?`, ["Bank Name"]],
+  ["By Contract ID", "SELECT * FROM FinancingPlans WHERE contract_id=?", ["Contract ID"]],
+];
+
+const PARTS_QUERIES = [
+  ["All Parts Orders", `SELECT po.order_id, d.dealership_name, po.part_name, po.part_number, po.quantity, po.unit_price, po.quantity*po.unit_price AS total_cost, po.order_date, po.status FROM PartsOrders po JOIN Dealerships d ON po.dealership_id=d.dealership_id ORDER BY po.order_date DESC`, []],
+  ["By Dealership ID", `SELECT po.order_id, po.part_name, po.part_number, po.quantity, po.unit_price, po.order_date, po.status FROM PartsOrders po WHERE po.dealership_id=? ORDER BY po.order_date DESC`, ["Dealership ID"]],
+  ["By Status", `SELECT po.order_id, d.dealership_name, po.part_name, po.quantity, po.order_date FROM PartsOrders po JOIN Dealerships d ON po.dealership_id=d.dealership_id WHERE po.status=? ORDER BY po.order_date DESC`, ["Status (Pending/Dispatched/Delivered)"]],
+  ["Parts Spend by Dealership", `SELECT d.dealership_name, COUNT(*) AS orders, SUM(po.quantity*po.unit_price) AS total_spend FROM PartsOrders po JOIN Dealerships d ON po.dealership_id=d.dealership_id GROUP BY d.dealership_name ORDER BY total_spend DESC`, []],
+];
+
+const SERVICE_QUERIES = [
+  ["All Appointments", `SELECT sa.appt_id, c.full_name AS customer, d.dealership_name, sa.vin, sa.appointment_date, sa.service_type, sa.status, sa.technician_name FROM ServiceAppointments sa JOIN Customers c ON sa.customer_id=c.customer_id JOIN Dealerships d ON sa.dealership_id=d.dealership_id ORDER BY sa.appointment_date DESC`, []],
+  ["By Customer ID", `SELECT sa.appt_id, d.dealership_name, sa.vin, sa.appointment_date, sa.service_type, sa.status FROM ServiceAppointments sa JOIN Dealerships d ON sa.dealership_id=d.dealership_id WHERE sa.customer_id=?`, ["Customer ID"]],
+  ["By VIN", `SELECT sa.appt_id, c.full_name AS customer, d.dealership_name, sa.appointment_date, sa.service_type, sa.status FROM ServiceAppointments sa JOIN Customers c ON sa.customer_id=c.customer_id JOIN Dealerships d ON sa.dealership_id=d.dealership_id WHERE sa.vin=? ORDER BY sa.appointment_date DESC`, ["VIN"]],
+  ["By Status", `SELECT sa.appt_id, c.full_name AS customer, d.dealership_name, sa.appointment_date, sa.service_type, sa.technician_name FROM ServiceAppointments sa JOIN Customers c ON sa.customer_id=c.customer_id JOIN Dealerships d ON sa.dealership_id=d.dealership_id WHERE sa.status=? ORDER BY sa.appointment_date`, ["Status (Scheduled/Completed/Cancelled)"]],
+];
+
+// ── ANALYTICS QUERIES (Q6–Q35) ────────────────────────────────────────────────
+const AN_INVENTORY = [
+  ["Dealership with most available vehicles", `SELECT d.dealership_name, d.city, COUNT(i.vin) AS available_vehicles FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id WHERE i.status='Available' GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY available_vehicles DESC`, []],
+  ["Vehicles sitting longest without being sold", `SELECT i.vin, d.dealership_name, vm.model_name, i.color, i.year, i.arrival_date, DATEDIFF(DAY,i.arrival_date,GETDATE()) AS days_in_stock, i.status FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.status!='Sold' ORDER BY days_in_stock DESC`, []],
+  ["Models completely out of stock", `SELECT vm.model_name, vm.category, vm.base_price, ISNULL(SUM(CASE WHEN i.status='Available' THEN 1 ELSE 0 END),0) AS available_units FROM VehicleModels vm LEFT JOIN Inventory i ON vm.model_id=i.model_id GROUP BY vm.model_id,vm.model_name,vm.category,vm.base_price HAVING ISNULL(SUM(CASE WHEN i.status='Available' THEN 1 ELSE 0 END),0)=0 ORDER BY vm.model_name`, []],
+  ["VINs per dealership with color & year", `SELECT d.dealership_name, d.city, i.vin, vm.model_name, i.color, i.year, i.status, i.arrival_date FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id ORDER BY d.dealership_name, i.status`, []],
+  ["Status breakdown per dealership", `SELECT d.dealership_name, d.city, SUM(CASE WHEN i.status='Available' THEN 1 ELSE 0 END) AS available, SUM(CASE WHEN i.status='Reserved' THEN 1 ELSE 0 END) AS reserved, SUM(CASE WHEN i.status='Sold' THEN 1 ELSE 0 END) AS sold, SUM(CASE WHEN i.status='In Transit' THEN 1 ELSE 0 END) AS in_transit, COUNT(i.vin) AS total FROM Dealerships d LEFT JOIN Inventory i ON d.dealership_id=i.dealership_id GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY d.dealership_name`, []],
+];
+
+const AN_CUSTOMERS = [
+  ["Customer → contract → vehicle → dealership", `SELECT sc.contract_id, c.full_name AS customer, c.phone, vm.model_name, d.dealership_name, d.city, sc.contract_date, sc.agreed_price, sc.discount, sc.tax, (sc.agreed_price-sc.discount+sc.tax) AS net_amount, sc.payment_mode, sc.status FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id ORDER BY sc.contract_date DESC`, []],
+  ["Customers who bought more than one vehicle", `SELECT c.customer_id, c.full_name, c.phone, COUNT(sc.contract_id) AS total_contracts FROM Customers c JOIN SalesContracts sc ON c.customer_id=sc.customer_id WHERE sc.status='Signed' GROUP BY c.customer_id,c.full_name,c.phone HAVING COUNT(sc.contract_id)>1 ORDER BY total_contracts DESC`, []],
+  ["Contract but no service appointment", `SELECT DISTINCT c.customer_id, c.full_name, c.phone, c.email FROM Customers c JOIN SalesContracts sc ON c.customer_id=sc.customer_id WHERE sc.status='Signed' AND c.customer_id NOT IN (SELECT DISTINCT customer_id FROM ServiceAppointments) ORDER BY c.full_name`, []],
+  ["Customer who spent the most", `SELECT c.customer_id, c.full_name, c.phone, COUNT(sc.contract_id) AS contracts, SUM(sc.agreed_price-sc.discount+sc.tax) AS total_net_spend FROM Customers c JOIN SalesContracts sc ON c.customer_id=sc.customer_id WHERE sc.status='Signed' GROUP BY c.customer_id,c.full_name,c.phone ORDER BY total_net_spend DESC`, []],
+  ["Contracts with vs without financing", `SELECT sc.contract_id, c.full_name AS customer, d.dealership_name, vm.model_name, sc.payment_mode, sc.status, CASE WHEN fp.financing_id IS NOT NULL THEN 'Yes' ELSE 'No' END AS has_financing, fp.bank_name, fp.tenure_months, fp.monthly_installment FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id LEFT JOIN FinancingPlans fp ON sc.contract_id=fp.contract_id ORDER BY has_financing DESC, sc.contract_date DESC`, []],
+  ["Bank financing the most contracts", `SELECT fp.bank_name, COUNT(fp.financing_id) AS contracts_financed, SUM(fp.down_payment) AS total_down, SUM(fp.monthly_installment*fp.tenure_months) AS total_repayable, AVG(fp.interest_rate) AS avg_rate FROM FinancingPlans fp GROUP BY fp.bank_name ORDER BY contracts_financed DESC`, []],
+];
+
+const AN_SALES = [
+  ["Dealership revenue ranking", `SELECT d.dealership_name, d.city, COUNT(sc.contract_id) AS signed_contracts, SUM(sc.agreed_price-sc.discount+sc.tax) AS total_revenue, AVG(sc.agreed_price) AS avg_sale_price FROM Dealerships d LEFT JOIN SalesContracts sc ON d.dealership_id=sc.dealership_id AND sc.status='Signed' GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY total_revenue DESC`, []],
+  ["Vehicle model sold the most times", `SELECT vm.model_name, vm.category, COUNT(sc.contract_id) AS times_sold FROM VehicleModels vm LEFT JOIN Inventory i ON vm.model_id=i.model_id LEFT JOIN SalesContracts sc ON i.vin=sc.vin AND sc.status='Signed' GROUP BY vm.model_id,vm.model_name,vm.category ORDER BY times_sold DESC`, []],
+  ["Revenue by payment mode", `SELECT sc.payment_mode, COUNT(sc.contract_id) AS num_contracts, SUM(sc.agreed_price-sc.discount+sc.tax) AS total_revenue, AVG(sc.agreed_price-sc.discount+sc.tax) AS avg_net FROM SalesContracts sc WHERE sc.status='Signed' GROUP BY sc.payment_mode ORDER BY total_revenue DESC`, []],
+  ["Cancelled contracts and vehicles involved", `SELECT sc.contract_id, c.full_name AS customer, d.dealership_name, sc.vin, vm.model_name, i.color, i.year, sc.contract_date, sc.agreed_price, sc.payment_mode FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE sc.status='Cancelled' ORDER BY sc.contract_date DESC`, []],
+  ["Dealerships with most pending contracts", `SELECT d.dealership_name, d.city, COUNT(sc.contract_id) AS pending_contracts FROM Dealerships d LEFT JOIN SalesContracts sc ON d.dealership_id=sc.dealership_id AND sc.status='Pending' GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY pending_contracts DESC`, []],
+];
+
+const AN_PARTS = [
+  ["Parts ordered per dealership with costs", `SELECT d.dealership_name, d.city, po.part_name, po.part_number, po.quantity, po.unit_price, po.quantity*po.unit_price AS total_cost, po.order_date, po.status FROM PartsOrders po JOIN Dealerships d ON po.dealership_id=d.dealership_id ORDER BY d.dealership_name, po.order_date DESC`, []],
+  ["Parts orders still pending delivery", `SELECT po.order_id, d.dealership_name, d.city, po.part_name, po.quantity, po.unit_price, po.quantity*po.unit_price AS total_cost, po.order_date, DATEDIFF(DAY,po.order_date,GETDATE()) AS days_pending FROM PartsOrders po JOIN Dealerships d ON po.dealership_id=d.dealership_id WHERE po.status='Pending' ORDER BY days_pending DESC`, []],
+  ["Highest total parts spender", `SELECT d.dealership_name, d.city, COUNT(po.order_id) AS total_orders, SUM(po.quantity*po.unit_price) AS total_spend FROM Dealerships d LEFT JOIN PartsOrders po ON d.dealership_id=po.dealership_id GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY total_spend DESC`, []],
+  ["Parts ordered by more than one dealership", `SELECT po.part_name, po.part_number, COUNT(DISTINCT po.dealership_id) AS dealerships_ordering, SUM(po.quantity) AS total_qty, SUM(po.quantity*po.unit_price) AS total_spend FROM PartsOrders po GROUP BY po.part_name,po.part_number HAVING COUNT(DISTINCT po.dealership_id)>1 ORDER BY dealerships_ordering DESC`, []],
+];
+
+const AN_SERVICE = [
+  ["Customer with most service appointments", `SELECT c.customer_id, c.full_name, c.phone, d.dealership_name, COUNT(sa.appt_id) AS total_appointments FROM ServiceAppointments sa JOIN Customers c ON sa.customer_id=c.customer_id JOIN Dealerships d ON sa.dealership_id=d.dealership_id GROUP BY c.customer_id,c.full_name,c.phone,d.dealership_name ORDER BY total_appointments DESC`, []],
+  ["VINs serviced more than once", `SELECT sa.vin, vm.model_name, COUNT(sa.appt_id) AS times_serviced, MIN(sa.appointment_date) AS first_service, MAX(sa.appointment_date) AS last_service FROM ServiceAppointments sa LEFT JOIN Inventory i ON sa.vin=i.vin LEFT JOIN VehicleModels vm ON i.model_id=vm.model_id GROUP BY sa.vin,vm.model_name HAVING COUNT(sa.appt_id)>1 ORDER BY times_serviced DESC`, []],
+  ["Dealership with most completed service jobs", `SELECT d.dealership_name, d.city, SUM(CASE WHEN sa.status='Completed' THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN sa.status='Scheduled' THEN 1 ELSE 0 END) AS scheduled, COUNT(sa.appt_id) AS total FROM Dealerships d LEFT JOIN ServiceAppointments sa ON d.dealership_id=sa.dealership_id GROUP BY d.dealership_id,d.dealership_name,d.city ORDER BY completed DESC`, []],
+  ["Technician workload ranking", `SELECT sa.technician_name, d.dealership_name, COUNT(sa.appt_id) AS total, SUM(CASE WHEN sa.status='Completed' THEN 1 ELSE 0 END) AS completed, SUM(CASE WHEN sa.status='Scheduled' THEN 1 ELSE 0 END) AS scheduled FROM ServiceAppointments sa JOIN Dealerships d ON sa.dealership_id=d.dealership_id WHERE sa.technician_name IS NOT NULL GROUP BY sa.technician_name,d.dealership_name ORDER BY total DESC`, []],
+  ["Customers with sold vehicle but never serviced", `SELECT DISTINCT c.customer_id, c.full_name, c.phone, c.email, sc.vin, vm.model_name, d.dealership_name, sc.contract_date FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE sc.status='Signed' AND sc.vin NOT IN (SELECT DISTINCT vin FROM ServiceAppointments) ORDER BY sc.contract_date DESC`, []],
+];
+
+const AN_CROSS = [
+  ["Full vehicle history by VIN", `SELECT 'INVENTORY' AS record_type, i.vin, CAST(i.arrival_date AS NVARCHAR) AS event_date, d.dealership_name AS location, vm.model_name AS detail_1, i.color AS detail_2, i.status AS detail_3 FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.vin=? UNION ALL SELECT 'SALE CONTRACT', CAST(sc.contract_id AS NVARCHAR), CAST(sc.contract_date AS NVARCHAR), d.dealership_name, c.full_name, sc.payment_mode, sc.status FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Dealerships d ON sc.dealership_id=d.dealership_id WHERE sc.vin=? UNION ALL SELECT 'FINANCING', CAST(fp.financing_id AS NVARCHAR), NULL, fp.bank_name, CAST(fp.down_payment AS NVARCHAR), CAST(fp.tenure_months AS NVARCHAR)+' mo', CAST(fp.interest_rate AS NVARCHAR)+'%' FROM FinancingPlans fp JOIN SalesContracts sc2 ON fp.contract_id=sc2.contract_id WHERE sc2.vin=? UNION ALL SELECT 'SERVICE', CAST(sa.appt_id AS NVARCHAR), CAST(sa.appointment_date AS NVARCHAR), d2.dealership_name, sa.service_type, sa.status, sa.technician_name FROM ServiceAppointments sa JOIN Dealerships d2 ON sa.dealership_id=d2.dealership_id WHERE sa.vin=?`, ["VIN"]],
+  ["Dealerships that sold AND later serviced a vehicle", `SELECT DISTINCT d.dealership_name, d.city, sc.vin, vm.model_name, sc.contract_date AS sale_date, sa.appointment_date AS service_date, sa.service_type FROM SalesContracts sc JOIN Dealerships d ON sc.dealership_id=d.dealership_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id JOIN ServiceAppointments sa ON sa.vin=sc.vin AND sa.dealership_id=sc.dealership_id AND sa.appointment_date>sc.contract_date WHERE sc.status='Signed' ORDER BY d.dealership_name`, []],
+  ["Installment buyers who returned for service", `SELECT DISTINCT c.customer_id, c.full_name, c.phone, sc.contract_id, vm.model_name, sc.contract_date, sa.appointment_date AS service_date, sa.service_type FROM SalesContracts sc JOIN Customers c ON sc.customer_id=c.customer_id JOIN Inventory i ON sc.vin=i.vin JOIN VehicleModels vm ON i.model_id=vm.model_id JOIN ServiceAppointments sa ON sa.customer_id=sc.customer_id WHERE sc.status='Signed' AND sc.payment_mode='Installment' ORDER BY c.full_name`, []],
+  ["Popular models with low parts orders (shortage risk)", `SELECT vm.model_name, vm.category, ISNULL(sales.times_sold,0) AS times_sold, ISNULL(parts.parts_orders,0) AS parts_orders, CASE WHEN ISNULL(sales.times_sold,0)>0 AND ISNULL(parts.parts_orders,0)=0 THEN 'HIGH RISK' WHEN ISNULL(sales.times_sold,0)>0 AND ISNULL(parts.parts_orders,0)<ISNULL(sales.times_sold,0) THEN 'MONITOR' ELSE 'OK' END AS shortage_risk FROM VehicleModels vm LEFT JOIN (SELECT i.model_id, COUNT(sc.contract_id) AS times_sold FROM SalesContracts sc JOIN Inventory i ON sc.vin=i.vin WHERE sc.status='Signed' GROUP BY i.model_id) sales ON vm.model_id=sales.model_id LEFT JOIN (SELECT dealership_id, COUNT(*) AS parts_orders FROM PartsOrders GROUP BY dealership_id) parts ON 1=1 ORDER BY times_sold DESC`, []],
+  ["Inventory >6 months old and still unsold", `SELECT i.vin, d.dealership_name, d.city, vm.model_name, i.color, i.year, i.arrival_date, DATEDIFF(DAY,i.arrival_date,GETDATE()) AS days_in_stock, i.status FROM Inventory i JOIN Dealerships d ON i.dealership_id=d.dealership_id JOIN VehicleModels vm ON i.model_id=vm.model_id WHERE i.arrival_date<=DATEADD(MONTH,-6,GETDATE()) AND i.status!='Sold' ORDER BY days_in_stock DESC`, []],
+];
+
+// ── INITIALISE ALL QUERY PANELS ON LOAD ───────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+  buildQueryPanel('qp-plants',      PLANT_QUERIES);
+  buildQueryPanel('qp-models',      MODEL_QUERIES);
+  buildQueryPanel('qp-production',  BATCH_QUERIES);
+  buildQueryPanel('qp-dealerships', DEALERSHIP_QUERIES);
+  buildQueryPanel('qp-inventory',   INVENTORY_QUERIES);
+  buildQueryPanel('qp-customers',   CUSTOMER_QUERIES);
+  buildQueryPanel('qp-contracts',   CONTRACT_QUERIES);
+  buildQueryPanel('qp-financing',   FINANCING_QUERIES);
+  buildQueryPanel('qp-parts',       PARTS_QUERIES);
+  buildQueryPanel('qp-service',     SERVICE_QUERIES);
+  buildQueryPanel('qp-an-inv',      AN_INVENTORY);
+  buildQueryPanel('qp-an-cust',     AN_CUSTOMERS);
+  buildQueryPanel('qp-an-sales',    AN_SALES);
+  buildQueryPanel('qp-an-parts',    AN_PARTS);
+  buildQueryPanel('qp-an-svc',      AN_SERVICE);
+  buildQueryPanel('qp-an-cross',    AN_CROSS);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DB FEATURES PAGE FUNCTIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Helper: show result in a div ──────────────────────────────────────────────
+function showDbfResult(divId, cols, rows, label) {
+  const el = document.getElementById(divId);
+  if (!el) return;
+  el.style.display = 'block';
+  let html = label ? `<div class="dbf-label">${label}</div>` : '';
+  html += buildTableHTML(cols, rows);
+  el.innerHTML = html;
+}
+function showDbfSuccess(divId, msg) {
+  const el = document.getElementById(divId);
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `<div class="dbf-success">✓ ${msg}</div>`;
+}
+function showDbfError(divId, msg) {
+  const el = document.getElementById(divId);
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `<div class="dbf-error">✗ ${msg}</div>`;
+}
+function buildTableHTML(cols, rows) {
+  if (!cols || !cols.length) return '<div class="dbf-error">No data returned</div>';
+  const statusMap = {
+    'Available':'badge-green','Signed':'badge-green','Completed':'badge-green','Delivered':'badge-green',
+    'Reserved':'badge-amber','Pending':'badge-amber','Scheduled':'badge-blue',
+    'Sold':'badge-gray','Cancelled':'badge-red','In Transit':'badge-blue','Dispatched':'badge-blue'
+  };
+  const th = cols.map(c => `<th>${c}</th>`).join('');
+  const tb = rows.map(row =>
+    '<tr>' + row.map(cell => {
+      const s = String(cell == null ? '' : cell);
+      const badge = statusMap[s];
+      if (badge) return `<td><span class="badge ${badge}">${s}</span></td>`;
+      if (/^[A-Z0-9]{17}$/.test(s)) return `<td class="mono">${s}</td>`;
+      return `<td>${s}</td>`;
+    }).join('') + '</tr>'
+  ).join('');
+  return `<div class="table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${tb || `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--sub);padding:20px">No records</td></tr>`}</tbody></table><div class="table-footer"><span>${rows.length} record(s)</span></div></div>`;
+}
+
+// ── SP 1: sp_RegisterSale ─────────────────────────────────────────────────────
+async function runSP_RegisterSale() {
+  const vin   = val('sp1_vin'), cid = val('sp1_cid'), did = val('sp1_did');
+  const price = val('sp1_price'), disc = val('sp1_disc'), tax = val('sp1_tax');
+  const mode  = val('sp1_mode');
+  if (!vin || !cid || !did || !price) { showDbfError('sp1_result','Fill VIN, Customer ID, Dealership ID and Price.'); return; }
+  try {
+    const r = await fetch(API + '/register-sale', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ vin, customer_id:cid, dealership_id:did, agreed_price:price, discount:disc||0, tax:tax||0, payment_mode:mode })
+    });
+    const d = await r.json();
+    if (d.error) { showDbfError('sp1_result', d.error); }
+    else {
+      showDbfSuccess('sp1_result', `Sale registered! Vehicle ${vin} is now Sold. Trigger trg_ContractSigned_UpdateInventory also fired automatically.`);
+      toast('sp_RegisterSale executed successfully', 'success');
+    }
+  } catch(e) { showDbfError('sp1_result', 'API error: ' + e.message); }
+}
+
+// ── SP 2: sp_CustomerProfile ──────────────────────────────────────────────────
+async function runSP_CustomerProfile() {
+  const cid = val('sp2_cid');
+  if (!cid) { showDbfError('sp2_info','Enter a Customer ID.'); return; }
+  try {
+    const r = await fetch(API + '/customer-profile/' + cid);
+    const d = await r.json();
+    if (d.error) { showDbfError('sp2_info', d.error); return; }
+    showDbfResult('sp2_info',     d.customer.cols,  d.customer.rows,  '① Customer Info');
+    showDbfResult('sp2_contracts',d.contracts.cols, d.contracts.rows, '② Sales Contracts');
+    showDbfResult('sp2_service',  d.service.cols,   d.service.rows,   '③ Service History');
+    toast('sp_CustomerProfile returned 3 result sets', 'success');
+  } catch(e) { showDbfError('sp2_info','API error: ' + e.message); }
+}
+
+// ── SP 3: sp_MonthlySalesReport ───────────────────────────────────────────────
+async function runSP_MonthlyReport() {
+  const did = val('sp3_did'), yr = val('sp3_year'), mo = val('sp3_month');
+  if (!did || !yr || !mo) { showDbfError('sp3_result','Fill all fields.'); return; }
+  try {
+    const r = await fetch(API + '/monthly-report', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ dealership_id:did, year:yr, month:mo })
+    });
+    const d = await r.json();
+    if (d.error) { showDbfError('sp3_result', d.error); return; }
+    showDbfResult('sp3_result',  d.detail.cols,  d.detail.rows,  '① Sales Detail');
+    showDbfResult('sp3_summary', d.summary.cols, d.summary.rows, '② Summary');
+    toast('sp_MonthlySalesReport executed', 'success');
+  } catch(e) { showDbfError('sp3_result','API error: ' + e.message); }
+}
+
+// ── SP 4: sp_BookService ──────────────────────────────────────────────────────
+async function runSP_BookService() {
+  const cid = val('sp4_cid'), did = val('sp4_did'), vin = val('sp4_vin');
+  const date = val('sp4_date'), type = val('sp4_type'), tech = val('sp4_tech');
+  if (!cid || !did || !vin || !date) { showDbfError('sp4_result','Fill all required fields.'); return; }
+  try {
+    const r = await fetch(API + '/book-service', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ customer_id:cid, dealership_id:did, vin, appointment_date:date, service_type:type, technician_name:tech })
+    });
+    const d = await r.json();
+    if (d.error) { showDbfError('sp4_result', d.error); }
+    else { showDbfSuccess('sp4_result','Appointment booked via sp_BookService. Duplicate-date guard passed.'); toast('sp_BookService executed','success'); }
+  } catch(e) { showDbfError('sp4_result','API error: ' + e.message); }
+}
+
+// ── TRIGGER demos ─────────────────────────────────────────────────────────────
+async function checkTriggerInventory() {
+  const vin = val('trg1_vin');
+  if (!vin) { showDbfError('trg1_result','Enter a VIN.'); return; }
+  try {
+    const r = await fetch(API+'/query',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:`SELECT vin, status, arrival_date FROM Inventory WHERE vin=?`, params:[vin] })});
+    const d = await r.json();
+    if (d.error) { showDbfError('trg1_result',d.error); return; }
+    showDbfResult('trg1_result', d.cols, d.rows, 'Current Inventory Status (trigger updates this automatically on contract signing)');
+  } catch(e) { showDbfError('trg1_result','API error: '+e.message); }
+}
+
+async function testDoubleSleTrigger() {
+  const vin = val('trg2_vin');
+  if (!vin) { showDbfError('trg2_result','Enter a VIN.'); return; }
+  try {
+    const r = await fetch(API+'/write',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:`INSERT INTO SalesContracts (vin,customer_id,dealership_id,contract_date,agreed_price,discount,tax,payment_mode,status) VALUES (?,1,1,GETDATE(),1000000,0,0,'Cash','Signed')`, params:[vin] })});
+    const d = await r.json();
+    if (d.error) { showDbfError('trg2_result','✗ TRIGGER FIRED: ' + d.error + '\n\ntrg_PreventDoubleSale successfully blocked the duplicate sale.'); }
+    else { showDbfSuccess('trg2_result','Contract inserted (vehicle was available). Check inventory — trg_ContractSigned_UpdateInventory has now marked it as Sold.'); }
+  } catch(e) { showDbfError('trg2_result','API error: '+e.message); }
+}
+
+async function testCancelTrigger() {
+  const cid = val('trg3_cid');
+  if (!cid) { showDbfError('trg3_result','Enter a Contract ID.'); return; }
+  try {
+    // First get the VIN of this contract
+    const r1 = await fetch(API+'/query',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:'SELECT vin, status FROM SalesContracts WHERE contract_id=?', params:[cid] })});
+    const d1 = await r1.json();
+    if (!d1.rows.length) { showDbfError('trg3_result','No contract found with that ID.'); return; }
+    const vin = d1.rows[0][0];
+    // Cancel it
+    const r2 = await fetch(API+'/write',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:`UPDATE SalesContracts SET status='Cancelled' WHERE contract_id=?`, params:[cid] })});
+    const d2 = await r2.json();
+    if (d2.error) { showDbfError('trg3_result',d2.error); return; }
+    // Show the VIN status after trigger fires
+    const r3 = await fetch(API+'/query',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:'SELECT vin, status FROM Inventory WHERE vin=?', params:[vin] })});
+    const d3 = await r3.json();
+    showDbfResult('trg3_result', d3.cols, d3.rows, `Contract ${cid} cancelled → trg_ContractCancelled_RestoreInventory fired → VIN ${vin} restored:`);
+    toast('Trigger trg_ContractCancelled_RestoreInventory fired','success');
+  } catch(e) { showDbfError('trg3_result','API error: '+e.message); }
+}
+
+async function checkTriggerReserve() {
+  const vin = val('trg4_vin');
+  if (!vin) { showDbfError('trg4_result','Enter a VIN.'); return; }
+  try {
+    const r = await fetch(API+'/query',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:`SELECT i.vin, i.status, sc.contract_id, sc.status AS contract_status FROM Inventory i LEFT JOIN SalesContracts sc ON i.vin=sc.vin WHERE i.vin=?`, params:[vin] })});
+    const d = await r.json();
+    if (d.error) { showDbfError('trg4_result',d.error); return; }
+    showDbfResult('trg4_result', d.cols, d.rows, 'Inventory + Contract Status (Reserved status set by trigger on Pending contract insert)');
+  } catch(e) { showDbfError('trg4_result','API error: '+e.message); }
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────────
+async function runView() {
+  const vw = document.getElementById('view-sel').value;
+  const resultDiv = document.getElementById('view-result');
+  resultDiv.innerHTML = '<div class="empty-state"><p>Querying view…</p></div>';
+  try {
+    const r = await fetch(API+'/query',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:`SELECT * FROM ${vw}`, params:[] })});
+    const d = await r.json();
+    if (d.error) { resultDiv.innerHTML = `<div class="dbf-error">✗ ${d.error}</div>`; return; }
+    renderTable(d.cols, d.rows, d.count, resultDiv);
+    toast(`${vw} queried — ${d.count} rows`, 'success');
+  } catch(e) { resultDiv.innerHTML = `<div class="dbf-error">API error: ${e.message}</div>`; }
+}
+
+// ── INDEXES ───────────────────────────────────────────────────────────────────
+async function runIndexQuery() {
+  const resultDiv = document.getElementById('idx-result');
+  resultDiv.innerHTML = '<div class="empty-state"><p>Loading indexes…</p></div>';
+  try {
+    const r = await fetch(API+'/query',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sql:`
+        SELECT
+          i.name          AS index_name,
+          t.name          AS table_name,
+          c.name          AS column_name,
+          i.type_desc     AS index_type,
+          i.is_unique,
+          i.is_primary_key
+        FROM sys.indexes i
+        JOIN sys.index_columns ic ON i.object_id=ic.object_id AND i.index_id=ic.index_id
+        JOIN sys.columns c        ON ic.object_id=c.object_id  AND ic.column_id=c.column_id
+        JOIN sys.tables t         ON i.object_id=t.object_id
+        WHERE t.is_ms_shipped=0
+          AND i.name IS NOT NULL
+        ORDER BY t.name, i.name`, params:[] })});
+    const d = await r.json();
+    if (d.error) { resultDiv.innerHTML = `<div class="dbf-error">✗ ${d.error}</div>`; return; }
+    renderTable(d.cols, d.rows, d.count, resultDiv);
+    toast(`${d.count} indexes found in honda_dms`, 'success');
+  } catch(e) { resultDiv.innerHTML = `<div class="dbf-error">API error: ${e.message}</div>`; }
+}
+
+// ── BEAM CANVAS BACKGROUND ────────────────────────────────────────────────────
+(function(){
+  const canvas = document.getElementById('beam-canvas');
+  const ctx    = canvas.getContext('2d');
+  const TOTAL  = 30;
+  let beams    = [];
+  let mouse    = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  let raf;
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = window.innerWidth  * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width  = window.innerWidth  + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.scale(dpr, dpr);
+    beams = Array.from({ length: TOTAL }, (_, i) => makeBeam(i));
+  }
+
+  function makeBeam(i) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const col = i % 3;
+    const spacing = W / 3;
+    return {
+      x:          col * spacing + spacing / 2 + (Math.random() - .5) * spacing * .6,
+      y:          H + 100 + Math.random() * H,
+      width:      100 + Math.random() * 120,
+      length:     H * 2.5,
+      angle:      -35 + (Math.random() - .5) * 12,
+      speed:      .5 + Math.random() * .9,
+      opacity:    .35 + Math.random() * .3,
+      hue:        190 + (i / TOTAL) * 70,
+      pulse:      Math.random() * Math.PI * 2,
+      pulseSpeed: .018 + Math.random() * .025,
+      attract:    .3 + Math.random() * .5,
+    };
+  }
+
+  function resetBeam(b, i) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const col = i % 3;
+    const spacing = W / 3;
+    b.y       = H + 120;
+    b.x       = col * spacing + spacing / 2 + (Math.random() - .5) * spacing * .5;
+    b.width   = 100 + Math.random() * 120;
+    b.speed   = .5 + Math.random() * .8;
+    b.hue     = 190 + (i / TOTAL) * 70;
+    b.opacity = .35 + Math.random() * .28;
+  }
+
+  function draw(b) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.angle * Math.PI / 180);
+    const po = b.opacity * (.8 + Math.sin(b.pulse) * .2);
+    const g  = ctx.createLinearGradient(0, 0, 0, b.length);
+    g.addColorStop(0,   `hsla(${b.hue},90%,72%,0)`);
+    g.addColorStop(.1,  `hsla(${b.hue},90%,72%,${po * .5})`);
+    g.addColorStop(.4,  `hsla(${b.hue},90%,72%,${po})`);
+    g.addColorStop(.6,  `hsla(${b.hue},90%,72%,${po})`);
+    g.addColorStop(.9,  `hsla(${b.hue},90%,72%,${po * .5})`);
+    g.addColorStop(1,   `hsla(${b.hue},90%,72%,0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(-b.width / 2, 0, b.width, b.length);
+    ctx.restore();
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    beams.forEach((b, i) => {
+      b.y     -= b.speed;
+      b.pulse += b.pulseSpeed;
+      const dx = mouse.x - b.x;
+      b.x += dx * .00015 * b.attract;
+      if (b.y + b.length < -120) resetBeam(b, i);
+      draw(b);
+    });
+    raf = requestAnimationFrame(animate);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  resize();
+  animate();
+})();
+</script>
+</body>
+</html>
